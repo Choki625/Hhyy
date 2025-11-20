@@ -190,7 +190,7 @@ local TELEGRAM_BOT_TOKEN = "6403202110:AAE53-MFEUNNLndUB_LWuqGKwAW5DAOc9xQ"
 local TelegramConfig = {
     Enabled = false,
     BotToken = TELEGRAM_BOT_TOKEN,
-    ChatID = "6865574937",
+    ChatID = "",
     SelectedRarities = {},
     MaxSelection = 3,
     UseFancyFont = true,
@@ -900,7 +900,7 @@ function AutoFishingV3()
                     pcall(function()
                         Remotes.EquipTool:FireServer(1)
                     end)
-                    task.wait(0.3)
+                    task.wait(0.03)
                 end
                 
                 -- Step 2: Charge Rod
@@ -914,7 +914,7 @@ function AutoFishingV3()
                             chargeSuccess = true
                             break
                         end
-                        task.wait(0.15)
+                        task.wait(0.05)
                     end
                     
                     if not chargeSuccess then
@@ -934,7 +934,7 @@ function AutoFishingV3()
                             startSuccess = true
                             break
                         end
-                        task.wait(0.15)
+                        task.wait(0.05)
                     end
                     
                     if not startSuccess then
@@ -943,7 +943,7 @@ function AutoFishingV3()
                 end
                 
                 -- Step 4: Fixed wait time (stable mode)
-                task.wait(1.5)
+                task.wait(0.5)
                 
                 -- Step 5: Finish Fishing
                 if Remotes.FinishFish then
