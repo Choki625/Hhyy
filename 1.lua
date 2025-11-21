@@ -1,4 +1,4 @@
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/Wreston00/Orionlib/refs/heads/main/source.lua')))()
 local Window = OrionLib:MakeWindow({
     Name = "Fish It! | By Igcool", 
     HidePremium = false,
