@@ -84,7 +84,7 @@ while getgenv().autoFarmEnabled do
 game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-759.0910034179688, 24.309707641601562, 429.12823486328125)
 platform.Position = game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(0, 3, 0)
 mouse1click()
-wait()
+wait(0.01)
 end
 end)
 else
