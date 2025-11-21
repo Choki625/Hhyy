@@ -8,17 +8,19 @@ local StartRemote = ReplicatedStorage:WaitForChild("FishingStart")
 local ReelRemote = ReplicatedStorage:WaitForChild("FishingReel")
 local NotifyRemote = ReplicatedStorage:WaitForChild("FishingNotify")
 
+-- DEV SETTINGS (disesuaikan dengan teks tombol awal)
 local DEV = {
-    autoFish = true,
-    autoPerfection = true,
+    autoFish = false,          -- tombol awal: Auto: Off
+    autoPerfection = false,    -- tombol awal: Perfect: Off
     speedMultiplier = 1.0,
-    instantCatch = true,
+    instantCatch = true,       -- tidak ada tombol, default true
     superFast = 0,
     delayMode = 1.0,
-    autoEquipRadar = true,
-    animationEnabled = false,
+    autoEquipRadar = false,    -- tombol awal: Auto-Equip Radar: Off
+    animationEnabled = true,   -- tombol awal: Animation: On
 }
 
+-- GUI
 local screen = Instance.new("ScreenGui")
 screen.Name = "FishingUI_v3"
 screen.ResetOnSpawn = false
@@ -84,7 +86,7 @@ progressBar.Position = UDim2.new(0,0,0,0)
 progressBar.BackgroundColor3 = Color3.fromRGB(200,60,60)
 progressBar.Parent = progressHolder
 
-local btnStyle = function(btn)
+local function btnStyle(btn)
     btn.BackgroundColor3 = Color3.fromRGB(22,22,22)
     btn.BorderSizePixel = 0
     local stroke = Instance.new("UIStroke")
@@ -169,6 +171,7 @@ speedDec.Text = "-0.5"
 speedDec.Parent = main
 btnStyle(speedDec)
 
+-- STATE
 local isFishing = false
 local startTick = 0
 local biteTick = nil
@@ -182,46 +185,63 @@ local function setProgress(p)
     progressBar.Size = UDim2.new(p, 0, 1, 0)
 end
 
+local function getHumanoid()
+    local character = player.Character
+    if not character or not character.Parent then
+        character = player.CharacterAdded:Wait()
+    end
+    return character and character:FindFirstChildOfClass("Humanoid")
+end
+
 local function tryAutoEquipRadar()
     if not DEV.autoEquipRadar then return end
+
     local backpack = player:FindFirstChild("Backpack")
     if backpack then
         local tool = backpack:FindFirstChild("FishingRadar")
         if tool and tool:IsA("Tool") then
-            player.CharacterAdded:Wait()
-            local character = player.Character
-            if character and character.Parent then
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid:EquipTool(tool)
-                    setStatus("Radar auto-equipped.")
-                end
+            local humanoid = getHumanoid()
+            if humanoid then
+                humanoid:EquipTool(tool)
+                setStatus("Radar auto-equipped.")
             end
             return
         end
     end
+
     local sp = StarterPack:FindFirstChild("FishingRadar")
     if sp and sp:IsA("Tool") then
+        local bp = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack")
         local clone = sp:Clone()
-        clone.Parent = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack")
+        clone.Parent = bp
         setStatus("Radar added to Backpack and equipped.")
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        local humanoid = getHumanoid()
         if humanoid then
             humanoid:EquipTool(clone)
         end
     end
 end
 
+-- BUTTON LOGIC
+
 startBtn.MouseButton1Click:Connect(function()
     if isFishing then
         setStatus("Already fishing...")
         return
     end
+
     isFishing = true
     startTick = tick()
+    biteTick = nil
     setStatus("Casting...")
     setProgress(0)
-    local req = { speed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1), delay = DEV.delayMode }
+
+    local speed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)
+    local req = {
+        speed = speed,
+        delay = DEV.delayMode
+    }
+
     StartRemote:FireServer(startTick, req)
     tryAutoEquipRadar()
 end)
@@ -244,8 +264,10 @@ superBtn.MouseButton1Click:Connect(function()
     else
         DEV.superFast = 0
     end
+
     superBtn.Text = (DEV.superFast == 0) and "Super: Off" or ("Super: " .. tostring(DEV.superFast) .. "x")
-    speedLabel.Text = "Speed: " .. tostring(DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)) .. "x"
+    local totalSpeed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)
+    speedLabel.Text = "Speed: " .. tostring(totalSpeed) .. "x"
 end)
 
 delayBtn.MouseButton1Click:Connect(function()
@@ -261,7 +283,9 @@ end)
 equipBtn.MouseButton1Click:Connect(function()
     DEV.autoEquipRadar = not DEV.autoEquipRadar
     equipBtn.Text = "Auto-Equip Radar: " .. (DEV.autoEquipRadar and "On" or "Off")
-    if DEV.autoEquipRadar then tryAutoEquipRadar() end
+    if DEV.autoEquipRadar then
+        tryAutoEquipRadar()
+    end
 end)
 
 animBtn.MouseButton1Click:Connect(function()
@@ -271,75 +295,94 @@ end)
 
 speedInc.MouseButton1Click:Connect(function()
     DEV.speedMultiplier = math.floor((DEV.speedMultiplier + 0.5) * 10) / 10
-    speedLabel.Text = "Speed: " .. tostring(DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)) .. "x"
+    local totalSpeed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)
+    speedLabel.Text = "Speed: " .. tostring(totalSpeed) .. "x"
 end)
 
 speedDec.MouseButton1Click:Connect(function()
     DEV.speedMultiplier = math.max(0.1, math.floor((DEV.speedMultiplier - 0.5) * 10) / 10)
-    speedLabel.Text = "Speed: " .. tostring(DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)) .. "x"
+    local totalSpeed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)
+    speedLabel.Text = "Speed: " .. tostring(totalSpeed) .. "x"
 end)
+
+-- REMOTE LISTENER
 
 NotifyRemote.OnClientEvent:Connect(function(payload)
     if not payload or not payload.event then return end
+
     if payload.event == "Started" then
         setStatus("Waiting for bite...")
         local target = (payload.when or tick())
-        spawn(function()
+
+        task.spawn(function()
             while isFishing and tick() < target do
                 local total = math.max(0.01, (target - startTick))
                 local elapsed = tick() - startTick
                 setProgress(elapsed / total)
-                wait(0.03)
+                task.wait(0.03)
             end
         end)
+
     elseif payload.event == "Bite" then
         biteTick = payload.serverTime or tick()
+
         if DEV.animationEnabled then
             setStatus("Fish is biting! Press E or 'Start Fishing' to reel.")
         else
             setStatus("Fish is biting! (animation off)")
         end
+
         setProgress(1)
+
+        local totalSpeed = DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1)
+        local speedSafe = math.max(totalSpeed, 0.01)
+
         if DEV.instantCatch then
             ReelRemote:FireServer(0)
+
         elseif DEV.autoPerfection then
-            local perfect = 3.0 / math.max(DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1), 0.01)
-            delay(perfect, function()
+            local perfect = 3.0 / speedSafe
+            task.delay(perfect, function()
                 if isFishing then
                     local elapsed = tick() - startTick
                     ReelRemote:FireServer(elapsed)
                 end
             end)
+
         elseif DEV.autoFish then
-            local elapsed = 3.0 / math.max(DEV.speedMultiplier * (DEV.superFast > 0 and DEV.superFast or 1), 0.01)
+            local elapsed = 3.0 / speedSafe
             ReelRemote:FireServer(elapsed)
         end
+
     elseif payload.event == "Result" then
         local res = payload.result or {}
         setStatus("Result: " .. (res.quality or "Unknown") .. " +" .. tostring(res.reward or 0))
         isFishing = false
         biteTick = nil
-        wait(2)
+        task.wait(2)
         setStatus("Ready")
         setProgress(0)
     end
 end)
 
+-- INPUT
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == Enum.KeyCode.E and isFishing then
+    if input.KeyCode == Enum.KeyCode.E and isFishing and biteTick ~= nil then
         local elapsed = tick() - startTick
         ReelRemote:FireServer(elapsed)
     end
 end)
 
-spawn(function()
-    while true do
+-- AUTO FISH LOOP
+
+task.spawn(function()
+    while task.wait(0.6) do
         if DEV.autoFish and not isFishing then
             startBtn:Activate()
         end
-        wait(0.6)
     end
 end)
 
-print("FishingClient v3 loaded (Elegant UI).")
+print("FishingClient v3 loaded (Elegant UI, fixed).")
