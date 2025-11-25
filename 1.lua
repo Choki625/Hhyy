@@ -1,4 +1,10 @@
 -- ====================================================================
+--  LOAD RAYFIELD UI LIBRARY (Wajib ada jika menggunakan Rayfield)
+-- ====================================================================
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+
+-- ====================================================================
 --  0. GLOBAL CONFIGURATION & INITIALIZATION (Dapat dimuat/disimpan oleh Rayfield)
 -- ====================================================================
 local Config = {
@@ -19,8 +25,8 @@ local services = {
     Players = game:GetService("Players"),
     RunService = game:GetService("RunService"),
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
-    HttpService = game:GetService("HttpService"), -- Mungkin tidak diperlukan, tapi dipertahankan
-    VirtualUser = game:GetService("VirtualUser") -- Dipertahankan
+    HttpService = game:GetService("HttpService"), 
+    VirtualUser = game:GetService("VirtualUser") 
 }
 
 local success, errorMsg = pcall(function()
@@ -35,7 +41,6 @@ local success, errorMsg = pcall(function()
         error("LocalPlayer not available")
     end
     
-    -- Cek ketersediaan task library (Roblox modern)
     if not task.wait or not task.spawn then
         error("Modern task scheduler missing")
     end
@@ -54,16 +59,14 @@ local RunService = services.RunService
 local ReplicatedStorage = services.ReplicatedStorage
 local LocalPlayer = services.LocalPlayer
 
--- ASUMSI: Events berada di ReplicatedStorage atau lokasi lain
--- Ganti path berikut dengan lokasi RemoteEvent yang sebenarnya di game
+-- GANTI PATH/NAMA REMOTE EVENT INI SESUAI DENGAN GAME TARGET
 local Events = {
-    equip = ReplicatedStorage:FindFirstChild("RemoteEquipEvent"), -- Ganti jika perlu
-    charge = ReplicatedStorage:FindFirstChild("RemoteChargeEvent"), -- Ganti jika perlu
-    minigame = ReplicatedStorage:FindFirstChild("RemoteMinigameEvent"), -- Ganti jika perlu
-    fishing = ReplicatedStorage:FindFirstChild("RemoteFishingEvent") -- Ganti jika perlu (Spam Reel)
+    equip = ReplicatedStorage:FindFirstChild("RemoteEquipEvent"), 
+    charge = ReplicatedStorage:FindFirstChild("RemoteChargeEvent"), 
+    minigame = ReplicatedStorage:FindFirstChild("RemoteMinigameEvent"), 
+    fishing = ReplicatedStorage:FindFirstChild("RemoteFishingEvent") 
 }
 
--- Validasi Events
 for eventName, event in pairs(Events) do
     if not event then
         warn("⚠️ RemoteEvent missing: " .. eventName .. ". Script might not work!")
@@ -74,17 +77,13 @@ end
 --  3. CORE LOGIC (Blatant Fishing Loop)
 -- ====================================================================
 
--- Fungsi utama yang menjalankan siklus fishing
 local function blatantFishingLoop()
-    -- Loop berjalan hanya jika diaktifkan (fishingActive) dan BlatantMode aktif
     while fishingActive and Config.BlatantMode do
-        -- Pastikan siklus sebelumnya sudah selesai
         if not isFishing then
             isFishing = true
             
             pcall(function()
                 
-                -- Pastikan event ada sebelum diakses
                 if Events.equip then
                     Events.equip:FireServer(1) -- Equip Rod
                     task.wait(0.01)
@@ -93,8 +92,6 @@ local function blatantFishingLoop()
                 -- Cast 1 (Parallel)
                 task.spawn(function()
                     if Events.charge and Events.minigame then
-                        -- Angka Charge/Minigame (1755848498.4834, 1.2854545116425) ASUMSI fixed value
-                        -- Sesuaikan jika game memerlukan input dinamis
                         Events.charge:InvokeServer(1755848498.4834)
                         task.wait(0.01)
                         Events.minigame:InvokeServer(1.2854545116425, 1)
@@ -116,11 +113,11 @@ local function blatantFishingLoop()
             -- Step 2: Wait for fish to bite
             task.wait(Config.FishDelay)
             
-            -- Step 3: Spam reel 5x to instant catch (Jika minigame berhasil di-skip/dipalsukan)
+            -- Step 3: Spam reel 5x to instant catch
             for i = 1, 5 do
                 pcall(function() 
                     if Events.fishing then
-                        Events.fishing:FireServer() -- Reel/Catch Event
+                        Events.fishing:FireServer() 
                     end
                 end)
                 task.wait(0.01)
@@ -133,22 +130,18 @@ local function blatantFishingLoop()
             isFishing = false
             print("[Blatant] ⚡ Fast cycle complete. Cooldown: " .. string.format("%.2f", cooldown) .. "s")
         else
-            task.wait(0.01) -- Tunggu sebentar jika sedang dalam proses
+            task.wait(0.01) 
         end
     end
 end
 
--- Fungsi kontrol untuk Toggle UI
 local function setFishingActive(active)
     fishingActive = active
     if active and Config.BlatantMode then
         print("🎣 Auto Fish Started! (Blatant Mode)")
-        -- Mulai loop utama di thread baru
         task.spawn(blatantFishingLoop)
     elseif active and not Config.BlatantMode then
-        print("🎣 Auto Fish Started! (Normal Mode - Blatant Loop is currently the only logic implemented)")
-        -- Jika Anda memiliki loop normal, panggil di sini.
-        -- Untuk saat ini, hanya menggunakan loop blatant (Anda dapat menyesuaikannya)
+        print("🎣 Auto Fish Started! (Normal Mode - Using Blatant Loop)")
         task.spawn(blatantFishingLoop)
     else
         print("🛑 Auto Fish Stopped.")
@@ -161,7 +154,6 @@ end
 -- ====================================================================
 if not Rayfield then
     warn("⚠️ Rayfield not loaded! UI will not be displayed. Script is running in background.")
-    -- Script utama akan tetap berjalan jika Rayfield tidak ada.
 else
     local Window = Rayfield:CreateWindow({
         Name = "🐟 Auto Fish - Rayfield UI",
@@ -197,7 +189,6 @@ else
         CurrentValue = Config.BlatantMode,
         Callback = function(Value)
             Config.BlatantMode = Value
-            -- Jika sedang aktif, re-trigger loop agar menggunakan mode baru
             if Config.AutoFish then
                 setFishingActive(false)
                 setFishingActive(true)
@@ -209,8 +200,6 @@ else
         }
     })
     
-    ---
-
     -- --- SETTINGS TAB ---
     local SettingsTab = Window:CreateTab("Settings", "rbxassetid://15448356980") 
 
@@ -248,9 +237,7 @@ else
         }
     })
     
-    ---
-    
-    -- --- EXTRA ---
+    -- --- UTILITY ---
     SettingsTab:CreateButton({
         Name = "Save Configuration",
         Callback = function()
