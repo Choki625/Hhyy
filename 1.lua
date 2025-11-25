@@ -14,9 +14,9 @@ local Config = {
 }
 
 -- Variabel status
-local isFishing = false     -- Status apakah script sedang dalam siklus fishing
-local fishingActive = false -- Status yang dikontrol oleh UI Toggle
-local currentLoopThread = nil -- Untuk mengontrol thread loop saat ini
+local isFishing = false     
+local fishingActive = false 
+local currentLoopThread = nil 
 
 -- ====================================================================
 --  1. CRITICAL DEPENDENCY VALIDATION
@@ -54,7 +54,6 @@ end
 local ReplicatedStorage = services.ReplicatedStorage
 local LocalPlayer = services.LocalPlayer
 
--- GANTI PATH/NAMA REMOTE EVENT INI SESUAI DENGAN GAME TARGET
 local Events = {
     equip = ReplicatedStorage:FindFirstChild("RemoteEquipEvent"), 
     charge = ReplicatedStorage:FindFirstChild("RemoteChargeEvent"), 
@@ -72,14 +71,12 @@ end
 --  3. CORE LOGIC (Blatant Fishing Loop)
 -- ====================================================================
 
--- Fungsi utilitas untuk memanggil event dengan aman
 local function safeFire(event, ...)
     if event and event:IsA("RemoteEvent") then
         pcall(event.FireServer, event, ...)
     end
 end
 
--- Fungsi utilitas untuk memanggil InvokeServer dengan aman
 local function safeInvoke(event, ...)
     if event and event:IsA("RemoteFunction") then
         local success, result = pcall(event.InvokeServer, event, ...)
@@ -89,14 +86,11 @@ local function safeInvoke(event, ...)
 end
 
 local function blatantFishingLoop()
-    -- Pastikan loop berhenti jika status fishingActive berubah
     while fishingActive and Config.BlatantMode do
         if not isFishing then
             isFishing = true
             
-            -- STEP 1: Rapid fire casts (Menggunakan InvokeServer yang lebih aman)
-            
-            -- Equip Rod
+            -- STEP 1: Rapid fire casts 
             safeFire(Events.equip, 1)
             task.wait(0.01)
             
@@ -132,17 +126,14 @@ local function blatantFishingLoop()
             isFishing = false
             print("[Blatant] ⚡ Fast cycle complete. Cooldown: " .. string.format("%.2f", cooldown) .. "s")
         else
-            -- Menambahkan timeout yang aman jika isFishing tidak pernah false (potensi bug)
             task.wait(0.01) 
         end
     end
 end
 
--- Fungsi kontrol loop yang dioptimasi
 local function setFishingActive(active)
     fishingActive = active
     
-    -- Hentikan thread loop lama jika ada (untuk clean start/stop)
     if currentLoopThread then
         task.cancel(currentLoopThread)
         currentLoopThread = nil
@@ -150,11 +141,9 @@ local function setFishingActive(active)
     
     if active and Config.BlatantMode then
         print("🎣 Auto Fish Started! (Blatant Mode)")
-        -- Mulai loop baru dan simpan referensi thread-nya
         currentLoopThread = task.spawn(blatantFishingLoop)
     elseif active and not Config.BlatantMode then
         print("🎣 Auto Fish Started! (Normal Mode - Using Blatant Loop)")
-        -- Mulai loop baru untuk mode normal (jika ada)
         currentLoopThread = task.spawn(blatantFishingLoop)
     else
         print("🛑 Auto Fish Stopped.")
@@ -180,7 +169,8 @@ else
     })
 
     -- --- MAIN TAB ---
-    local MainTab = Window:CreateTab("Main", "rbxassetid://15448359409") 
+    -- *** PERBAIKAN BUG: Mengganti Asset ID yang gagal dengan nama ikon Lucide "Fish" ***
+    local MainTab = Window:CreateTab("Main", "Fish") 
 
     -- Toggle Auto Fish Utama
     MainTab:CreateToggle({
@@ -202,9 +192,8 @@ else
         CurrentValue = Config.BlatantMode,
         Callback = function(Value)
             Config.BlatantMode = Value
-            -- Re-trigger loop untuk menerapkan mode baru jika sudah aktif
             if Config.AutoFish then
-                setFishingActive(true) -- Cukup panggil true untuk menghentikan thread lama dan memulai yang baru
+                setFishingActive(true) 
             end
         end,
         Sections = {
@@ -214,7 +203,8 @@ else
     })
     
     -- --- SETTINGS TAB ---
-    local SettingsTab = Window:CreateTab("Settings", "rbxassetid://15448356980") 
+    -- *** PERBAIKAN BUG: Mengganti Asset ID yang gagal dengan nama ikon Lucide "Settings" ***
+    local SettingsTab = Window:CreateTab("Settings", "Settings") 
 
     SettingsTab:CreateSlider({
         Name = "Fish Delay (Wait for Bite)",
