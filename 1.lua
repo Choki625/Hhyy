@@ -672,130 +672,261 @@ local function ResetFishingState()
 end
 
 function AutoFishingV1()
+
     if RuntimeState.IsFishingV1 then
+
         warn("[AutoFishingV1] Already running")
+
         return
+
     end
+
     
+
     task.spawn(function()
+
         RuntimeState.IsFishingV1 = true
-        print("[AutoFishingV1] Started - Fast Speed Mode")
+
+        print("[AutoFishingV1] Started - AGGRESSIVE PARALLEL SPAM Mode")
+
         
+
         local consecutiveErrors = 0
+
         local maxConsecutiveErrors = 10
+
         
+
         while Config.AutoFishingV1 and RuntimeState.IsFishingV1 do
+
             local cycleSuccess = false
+
             
+
             local success, err = pcall(function()
+
+                
+
                 -- Wait if selling
+
                 while RuntimeState.IsSelling do
+
                     task.wait(0.5)
+
                 end
+
                 
+
                 -- Validate character
+
                 if not LocalPlayer.Character or not HumanoidRootPart then
+
                     repeat task.wait(0.5) until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
                     Character = LocalPlayer.Character
+
                     HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
                 end
+
                 
-                -- Step 1: Equip Rod
+
+                -- Step 1: Equip Rod (Sinkron)
+
                 if Remotes.EquipTool then
+
                     local equipOk = pcall(function()
+
                         Remotes.EquipTool:FireServer(1)
+
                     end)
+
                     if not equipOk then
+
                         error("Equip failed")
+
                     end
-                    task.wait(0.15)
+
+                    task.wait(0.1) -- Jeda lebih cepat
+
                 end
+
                 
-                -- Step 2: Charge Rod
+
+                -- =================================================
+
+                -- Step 2 & 3: Charge Rod & Start Minigame (PARALEL)
+
+                -- =================================================
+
+
+
+                -- Try to Charge Rod (ASYNC)
+
                 if Remotes.ChargeRod then
-                    local chargeSuccess = false
-                    for attempt = 1, 3 do
-                        local ok, result = pcall(function()
-                            return Remotes.ChargeRod:InvokeServer(tick())
+
+                    task.spawn(function()
+
+                        pcall(function()
+
+                            -- Spam charge attempts asynchronously for speed
+
+                            for attempt = 1, 3 do 
+
+                                Remotes.ChargeRod:InvokeServer(tick())
+
+                                task.wait(0.01)
+
+                            end
+
                         end)
-                        if ok and result then
-                            chargeSuccess = true
-                            break
-                        end
-                        task.wait(0.1)
-                    end
-                    
-                    if not chargeSuccess then
-                        error("Charge failed after 3 attempts")
-                    end
-                    task.wait(0.12)
-                end
-                
-                -- Step 3: Start Minigame
-                if Remotes.StartMini then
-                    local startSuccess = false
-                    for attempt = 1, 3 do
-                        local ok = pcall(function()
-                            Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
-                        end)
-                        if ok then
-                            startSuccess = true
-                            break
-                        end
-                        task.wait(0.1)
-                    end
-                    
-                    if not startSuccess then
-                        error("Start minigame failed after 3 attempts")
-                    end
-                end
-                
-                -- Step 4: Wait for bite
-                local actualDelay = math.max(Config.FishingDelay or 0.3, 0.1)
-                task.wait(actualDelay)
-                
-                -- Step 5: Finish Fishing
-                if Remotes.FinishFish then
-                    local finishOk = pcall(function()
-                        Remotes.FinishFish:FireServer()
+
                     end)
+
+                end
+
+
+
+                -- Try to Start Minigame (ASYNC)
+
+                if Remotes.StartMini then
+
+                    task.spawn(function()
+
+                        pcall(function()
+
+                            -- Spam start attempts asynchronously for speed
+
+                            for attempt = 1, 3 do 
+
+                                Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
+
+                                task.wait(0.01)
+
+                            end
+
+                        end)
+
+                    end)
+
+                end
+
+                
+
+                task.wait(0.2) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
+
+                
+
+                -- Step 4: Wait for bite
+
+                local actualDelay = math.max(Config.FishingDelay or 0.25, 0.1) -- Delay yang lebih rendah
+
+                task.wait(actualDelay)
+
+                
+
+                -- =================================================
+
+                -- Step 5: Finish Fishing (SPAM 5X)
+
+                -- =================================================
+
+                if Remotes.FinishFish then
+
+                    local finishedAtLeastOnce = false
+
                     
-                    if finishOk then
-                        cycleSuccess = true
-                        RuntimeState.LastFishTime = tick()
-                        consecutiveErrors = 0
+
+                    for i = 1, 5 do -- Spam FinishFish 5 kali
+
+                        local finishOk = pcall(function()
+
+                            Remotes.FinishFish:FireServer()
+
+                        end)
+
+                        
+
+                        if finishOk then
+
+                            finishedAtLeastOnce = true
+
+                        end
+
+                        task.wait(0.02) -- Jeda sangat singkat antar spam
+
                     end
+
+
+
+                    if finishedAtLeastOnce then
+
+                        cycleSuccess = true
+
+                        RuntimeState.LastFishTime = tick()
+
+                        consecutiveErrors = 0
+
+                    else
+
+                        error("Finish Fishing spam failed 5 times")
+
+                    end
+
                 end
+
                 
-                task.wait(0.1)
+
+                task.wait(0.05) -- Jeda sangat pendek setelah siklus sukses
+
             end)
+
             
+
             if not success then
+
                 consecutiveErrors = consecutiveErrors + 1
+
                 warn("[AutoFishingV1] Cycle error:", err, "| Consecutive errors:", consecutiveErrors)
+
                 
+
                 if consecutiveErrors >= maxConsecutiveErrors then
+
                     warn("[AutoFishingV1] Too many errors, stopping...")
+
                     Config.AutoFishingV1 = false
-                    Rayfield:Notify({
-                        Title = "AutoFishing V1",
-                        Content = "Stopped due to errors. Please restart manually.",
-                        Duration = 5
-                    })
+
+                    -- Rayfield:Notify(...) -- Diasumsikan notifikasi GUI sudah terdefinisi
+
                     break
+
                 end
+
                 
+
                 task.wait(1) -- Wait longer on error
+
             elseif cycleSuccess then
+
                 task.wait(0.05) -- Short wait on success
+
             else
+
                 task.wait(0.3) -- Medium wait on partial success
+
             end
+
         end
+
         
+
         ResetFishingState()
+
         print("[AutoFishingV1] Stopped")
+
     end)
+
 end
 
 -- ============================================================================
