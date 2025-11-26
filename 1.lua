@@ -25,6 +25,7 @@ local selectedMode = "Fast";
 
 -- CATATAN PENTING:
 -- Ganti ini dengan referensi objek RemoteFunction/RemoteEvent yang BENAR dalam game Anda.
+-- Asumsikan 'v5' didefinisikan di tempat lain dalam lingkungan eksekusi.
 local v6 = {
     Functions = {
         Cancel = v5.Net["RF/CancelFishingInputs"], -- RemoteFunction
@@ -90,6 +91,7 @@ end;
 
 local FishTab = Window:CreateTab("Fish", "rbxassetid://6820023607")
 
+-- HANYA SATU DEKLARASI DI SINI, diikuti oleh elemen UI di bawahnya.
 local BlatantSection = FishTab:CreateSection("Blatant Features [BETA]")
 
 -- 1. Dropdown
@@ -130,7 +132,7 @@ BlatantSection:CreateInput({
     end,
 })
 
--- 4. Toggle untuk Mengaktifkan Auto-Fishing (MODIFIKASI INI)
+-- 4. Toggle untuk Mengaktifkan Auto-Fishing
 BlatantSection:CreateToggle({
     Name = "Blatant Fishing",
     Default = _G.FBlatant,
