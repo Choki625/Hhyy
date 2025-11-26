@@ -987,8 +987,11 @@ end
 -- AUTO FISHING V3 (STABLE - FIXED)
 -- ============================================================================
 
--- Konfigurasi Parallel
-Config.ParallelThreads = 3  -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
+-- Konfigurasi Parallel---
+Config.ParallelThreads = 5   -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
+Config.ThreadDelayInitial = 0.15 -- Delay awal per thread (dalam detik)
+Config.ThreadDelayMin = 0.08   -- Delay minimum yang diizinkan (Agar tidak terlalu cepat/DC)
+Config.DelayAdjustmentStep = 0.005 -- Seberapa besar delay dikurangi/ditambah setiap siklus
 
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
@@ -997,13 +1000,15 @@ function AutoFishingV3()
     end
 
     RuntimeState.IsFishingV3 = true
-    print("[AutoFishingV3] Started - PARALLEL MODE (" .. Config.ParallelThreads .. " Threads)")
+    print("[AutoFishingV3] Started - PARALLEL MODE (" .. Config.ParallelThreads .. " Threads) - ADAPTIVE DELAY")
 
     -- Fungsi untuk satu siklus pancingan (Single Thread)
     local function StartFishingThread(threadID)
         task.spawn(function()
             print("[Thread " .. threadID .. "] Active")
             local consecutiveErrors = 0
+            -- Delay saat ini untuk thread ini
+            local currentDelay = Config.ThreadDelayInitial 
             
             while Config.AutoFishingV3 and RuntimeState.IsFishingV3 do
                 local success, err = pcall(function()
@@ -1042,27 +1047,41 @@ function AutoFishingV3()
                         end)
                     end
                     
-                    -- Step 3: Wait Time (Sangat Cepat - Parallel)
-                    -- Karena parallel, kita tidak butuh wait lama. Thread lain sedang mengisi kekosongan.
-                    task.wait(0.15) 
+                    -- Step 3: Wait Time (DYNAMIC/ADAPTIVE DELAY)
+                    task.wait(currentDelay) 
 
                     -- Step 4: Finish Fishing
                     if Remotes.FinishFish then
                         pcall(function() Remotes.FinishFish:FireServer() end)
                     end
 
+                    -- LOGIKA ADAPTIVE DELAY (BERHASIL)
+                    -- Kurangi delay sedikit, tapi tidak boleh lebih rendah dari batas minimum
+                    if currentDelay > Config.ThreadDelayMin then
+                        currentDelay = math.max(Config.ThreadDelayMin, currentDelay - Config.DelayAdjustmentStep)
+                        -- print("[Thread " .. threadID .. "] Delay Reduced to: " .. string.format("%.3f", currentDelay))
+                    end
                     -- Reset error count jika berhasil sampai sini
                     consecutiveErrors = 0
                 end)
 
                 if not success then
                     consecutiveErrors = consecutiveErrors + 1
-                    -- Jika error, thread ini istirahat sebentar, tapi thread lain tetap jalan
-                    task.wait(1) 
+                    
+                    -- LOGIKA ADAPTIVE DELAY (ERROR BERUNTUN)
+                    -- Jika error, tingkatkan delay sedikit untuk menstabilkan diri
+                    if consecutiveErrors >= 3 then -- Atur ambang batas error (misal: 3x error beruntun)
+                        currentDelay = currentDelay + (Config.DelayAdjustmentStep * 2) -- Tingkatkan lebih banyak dari penurunan
+                        print("[Thread " .. threadID .. "] **ERROR TINGGI!** Delay Increased to: " .. string.format("%.3f", currentDelay))
+                        consecutiveErrors = 0 -- Reset setelah kenaikan delay
+                    else
+                         -- Jika error, thread ini istirahat sebentar, tapi thread lain tetap jalan
+                        task.wait(1) 
+                    end
                 end
                 
                 -- Jeda sangat singkat antar loop per thread
-                task.wait(0.1) 
+                task.wait(0.01) -- Jeda antar loop thread (ini BUKAN jeda memancing)
             end
             print("[Thread " .. threadID .. "] Stopped")
         end)
@@ -1073,7 +1092,7 @@ function AutoFishingV3()
     for i = 1, Config.ParallelThreads do
         StartFishingThread(i)
         -- Beri jeda sedikit saat start agar tidak menembak server serentak di milidetik yang sama
-        task.wait(0.5) 
+        task.wait(0.1) 
     end
 end
 
