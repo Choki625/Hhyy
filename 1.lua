@@ -771,11 +771,11 @@ function AutoFishingV1()
 
                             -- Spam charge attempts asynchronously for speed
 
-                            for attempt = 1, 4 do 
+                            for attempt = 1, 3 do 
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
-                                
+                                task.wait(0.01)
 
                             end
 
@@ -797,11 +797,11 @@ function AutoFishingV1()
 
                             -- Spam start attempts asynchronously for speed
 
-                            for attempt = 1, 4 do 
+                            for attempt = 1, 3 do 
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
-                                
+                                task.wait(0.01)
 
                             end
 
@@ -813,7 +813,7 @@ function AutoFishingV1()
 
                 
 
-                task.wait(0.05) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
+                task.wait(0.1) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
 
                 
 
@@ -837,7 +837,7 @@ function AutoFishingV1()
 
                     
 
-                    for i = 1, 7 do -- Spam FinishFish 5 kali
+                    for i = 1, 5 do -- Spam FinishFish 5 kali
 
                         local finishOk = pcall(function()
 
@@ -853,7 +853,7 @@ function AutoFishingV1()
 
                         end
 
-                        
+                        task.wait(0.02) -- Jeda sangat singkat antar spam
 
                     end
 
@@ -987,11 +987,12 @@ end
 -- AUTO FISHING V3 (STABLE - FIXED)
 -- ============================================================================
 
--- Konfigurasi Parallel---
-Config.ParallelThreads = 5   -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
-Config.ThreadDelayInitial = 1.15 -- Delay awal per thread (dalam detik)
-Config.ThreadDelayMin = 0.28   -- Delay minimum yang diizinkan (Agar tidak terlalu cepat/DC)
-Config.DelayAdjustmentStep = 0.05 -- Seberapa besar delay dikurangi/ditambah setiap siklus
+-- ULTRA TURBO CONFIG (EXTREME)
+Config.ParallelThreads = 4           -- Parallel 4 (lebih brutal dari 3)
+Config.ThreadDelayInitial = 0.30     -- Langsung cepat dari awal
+Config.ThreadDelayMin = 0.12        -- BATAS BAWAH GILA (di bawah ini sangat rawan DC)
+Config.DelayAdjustmentStep = 0.02   -- Adaptasi cepat dan agresif
+
 
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
@@ -1000,107 +1001,122 @@ function AutoFishingV3()
     end
 
     RuntimeState.IsFishingV3 = true
-    print("[AutoFishingV3] Started - PARALLEL MODE (" .. Config.ParallelThreads .. " Threads) - ADAPTIVE DELAY")
+    print("[AutoFishingV3] ULTRA TURBO MODE ("
+        .. Config.ParallelThreads .. " Threads) - EXTREME ACTIVE")
 
-    -- Fungsi untuk satu siklus pancingan (Single Thread)
     local function StartFishingThread(threadID)
         task.spawn(function()
-            print("[Thread " .. threadID .. "] Active")
+            -- Offset awal supaya 4 thread nggak hajar server di milidetik yang sama
+            task.wait(math.random(5, 25) / 100)
+
+            print("[Thread " .. threadID .. "] ULTRA TURBO Started")
+
             local consecutiveErrors = 0
-            -- Delay saat ini untuk thread ini
-            local currentDelay = Config.ThreadDelayInitial 
-            
+            local currentDelay = Config.ThreadDelayInitial
+
             while Config.AutoFishingV3 and RuntimeState.IsFishingV3 do
                 local success, err = pcall(function()
-                    
-                    -- Step 0: Cek Inventory & Karakter (Hanya Thread 1 yang urus inventory agar tidak crash)
+
+                    -- Hanya Thread 1 yang urus inventory & equip
                     if threadID == 1 then
                         local invCount = RefreshInventoryCount()
                         if invCount >= 4400 and Config.AutoSell then
                             SellAllFish()
-                            task.wait(1)
+                            task.wait(0.4) -- jangan terlalu lama
                         end
-                        
-                        -- Equip Rod (Cukup sekali di awal atau jika lepas)
-                        if Remotes.EquipTool and (not Character:FindFirstChildWhichIsA("Tool")) then
+
+                        if Remotes.EquipTool and not Character:FindFirstChildWhichIsA("Tool") then
                             Remotes.EquipTool:FireServer(1)
-                            task.wait(0.2)
+                            task.wait(0.08)
                         end
                     end
 
-                    -- Step 1: Charge Rod (Dipercepat)
+                    -- CHARGE ROD (retry cepat)
                     if Remotes.ChargeRod then
-                        local chargeSuccess = false
                         for attempt = 1, 3 do
-                             -- Gunakan tick() unik per thread agar tidak dianggap spam duplikat
-                            local ok = pcall(function() Remotes.ChargeRod:InvokeServer(tick() + threadID) end)
-                            if ok then chargeSuccess = true break end
-                            task.wait(0.05)
+                            local ok = pcall(function()
+                                Remotes.ChargeRod:InvokeServer(tick() + threadID)
+                            end)
+                            if ok then break end
+                            task.wait(0.02) -- super singkat
                         end
                     end
-                    
-                    -- Step 2: Start Minigame
+
+                    -- START MINIGAME (acak sedikit biar natural)
                     if Remotes.StartMini then
-                         -- Koordinat sedikit diacak agar terlihat natural bagi server
-                        pcall(function() 
-                            Remotes.StartMini:InvokeServer(-1.233 + (math.random()/100), 0.994 + (math.random()/100)) 
+                        pcall(function()
+                            Remotes.StartMini:InvokeServer(
+                                -1.233 + (math.random() / 250),
+                                0.994 + (math.random() / 250)
+                            )
                         end)
                     end
-                    
-                    -- Step 3: Wait Time (DYNAMIC/ADAPTIVE DELAY)
-                    task.wait(currentDelay) 
 
-                    -- Step 4: Finish Fishing
+                    -- ULTRA TURBO DELAY
+                    task.wait(currentDelay)
+
+                    -- FINISH FISH
                     if Remotes.FinishFish then
-                        pcall(function() Remotes.FinishFish:FireServer() end)
+                        pcall(function()
+                            Remotes.FinishFish:FireServer()
+                        end)
                     end
 
-                    -- LOGIKA ADAPTIVE DELAY (BERHASIL)
-                    -- Kurangi delay sedikit, tapi tidak boleh lebih rendah dari batas minimum
+                    -- ADAPTIVE DELAY (AGRESIF)
                     if currentDelay > Config.ThreadDelayMin then
-                        currentDelay = math.max(Config.ThreadDelayMin, currentDelay - Config.DelayAdjustmentStep)
-                        -- print("[Thread " .. threadID .. "] Delay Reduced to: " .. string.format("%.3f", currentDelay))
+                        currentDelay = currentDelay - Config.DelayAdjustmentStep
+                        if currentDelay < Config.ThreadDelayMin then
+                            currentDelay = Config.ThreadDelayMin
+                        end
+
+                        -- anti-pattern: sedikit random naik turun
+                        currentDelay = currentDelay + ((math.random() - 0.5) * 0.008)
+                        if currentDelay < Config.ThreadDelayMin then
+                            currentDelay = Config.ThreadDelayMin
+                        end
                     end
-                    -- Reset error count jika berhasil sampai sini
+
+                    -- reset error counter kalau berhasil
                     consecutiveErrors = 0
                 end)
 
+                -- ERROR HANDLING ULTRA
                 if not success then
                     consecutiveErrors = consecutiveErrors + 1
-                    
-                    -- LOGIKA ADAPTIVE DELAY (ERROR BERUNTUN)
-                    -- Jika error, tingkatkan delay sedikit untuk menstabilkan diri
-                    if consecutiveErrors >= 3 then -- Atur ambang batas error (misal: 3x error beruntun)
-                        currentDelay = currentDelay + (Config.DelayAdjustmentStep * 2) -- Tingkatkan lebih banyak dari penurunan
-                        print("[Thread " .. threadID .. "] **ERROR TINGGI!** Delay Increased to: " .. string.format("%.3f", currentDelay))
-                        consecutiveErrors = 0 -- Reset setelah kenaikan delay
+
+                    if consecutiveErrors >= 2 then
+                        -- Naikkan delay cukup besar supaya stabil lagi
+                        currentDelay = currentDelay + (Config.DelayAdjustmentStep * 3.0)
+                        print("[Thread " .. threadID .. "] ⚠ ULTRA ERROR! Delay Raised to: "
+                            .. string.format("%.4f", currentDelay))
+                        consecutiveErrors = 0
                     else
-                         -- Jika error, thread ini istirahat sebentar, tapi thread lain tetap jalan
-                        task.wait(1) 
+                        -- cooldown sangat singkat antar error
+                        task.wait(0.18)
                     end
                 end
-                
-                -- Jeda sangat singkat antar loop per thread
-                task.wait(0.01) -- Jeda antar loop thread (ini BUKAN jeda memancing)
+
+                -- Loop antar siklus (super kecil)
+                task.wait(0.0025)
             end
-            print("[Thread " .. threadID .. "] Stopped")
+
+            print("[Thread " .. threadID .. "] ULTRA TURBO Stopped")
         end)
     end
 
-    -- MENJALANKAN THREAD SECARA PARALLEL
-    -- Ini akan membuat loop terpisah sebanyak Config.ParallelThreads
+    -- START 4 THREAD PARALLEL
     for i = 1, Config.ParallelThreads do
         StartFishingThread(i)
-        -- Beri jeda sedikit saat start agar tidak menembak server serentak di milidetik yang sama
-        task.wait(0.1) 
+        -- Sedikit jeda antar thread spawn
+        task.wait(0.05)
     end
 end
 
--- Fungsi Stop (Untuk mematikan semua thread)
 function StopAutoFishing()
     RuntimeState.IsFishingV3 = false
     Config.AutoFishingV3 = false
 end
+
 
 -- ============================================================================
 -- AUTO FISHING - NEW METHOD (EQUIP ONCE) - EXTREME SPEED 5x
