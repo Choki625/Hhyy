@@ -747,7 +747,7 @@ function AutoFishingV1()
 
                     end
 
-                    task.wait(0.1) -- Jeda lebih cepat
+                    task.wait(0.2) -- Jeda lebih cepat
 
                 end
 
@@ -775,7 +775,7 @@ function AutoFishingV1()
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
-                                task.wait(0.1)
+                                task.wait(0.01)
 
                             end
 
@@ -801,7 +801,7 @@ function AutoFishingV1()
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
-                                task.wait(0.1)
+                                task.wait(0.01)
 
                             end
 
@@ -853,7 +853,7 @@ function AutoFishingV1()
 
                         end
 
-                        task.wait(0.02) -- Jeda sangat singkat antar spam
+                        task.wait(0.01) -- Jeda sangat singkat antar spam
 
                     end
 
@@ -3008,16 +3008,29 @@ local function CreateUI()
         end
     })
     
-    
-    Tab1:CreateSlider({
-        Name = "Fishing Delay (V1 & New Method)",
-        Range = {0.1, 5},
-        Increment = 0.1,
-        CurrentValue = Config.FishingDelay,
-        Callback = function(Value)
-            Config.FishingDelay = Value
+    Tab1:CreateInput({
+        Name = "auto fish delay",
+        PlaceholderText = "Enter delay (default: 0.4)",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            local number = tonumber(Text)
+            if number and number >= 0.001 and number <= 4500 then
+                Config.FishingDelay = number
+                Rayfield:Notify({
+                    Title = "Threshold Updated",
+                    Content = "New threshold: " .. number .. " fish",
+                    Duration = 3
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Invalid Input",
+                    Content = "Enter number between 1-4500",
+                    Duration = 3
+                })
+            end
         end
     })
+    
     
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
