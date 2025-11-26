@@ -3026,8 +3026,7 @@ local function CreateUI()
             end
         end
     })
-
-
+    
     Tab1:CreateInput({
         Name = "Fishing Delay (V1 & New Method)",
         Placeholder = "0.1 to 5 (e.g., 1.5)",
@@ -3056,8 +3055,7 @@ local function CreateUI()
             end
         end
     })
-    
-    
+
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
     Tab1:CreateButton({
