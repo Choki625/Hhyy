@@ -666,268 +666,180 @@ end
 -- AUTO FISHING V1 (FAST SPEED - FIXED)
 -- ============================================================================
 
+---------------------------------------------------------------------
+-- CONFIG
+---------------------------------------------------------------------
+Config.FishingDelay = 0.25
+Config.FishingThreads = 3             -- jumlah agresivitas spam
+Config.AutoFishingV1 = false          -- toggle utama
+
+---------------------------------------------------------------------
+-- RUNTIME STATE
+---------------------------------------------------------------------
+RuntimeState.IsFishingV1 = false
+RuntimeState.IsSelling = false
+RuntimeState.LastFishTime = tick()
+
+---------------------------------------------------------------------
+-- FUNCTION: RESET STATE
+---------------------------------------------------------------------
 local function ResetFishingState()
     RuntimeState.IsFishingV1 = false
     RuntimeState.LastFishTime = tick()
 end
 
+---------------------------------------------------------------------
+-- FUNCTION: ULTRA-EFFICIENT SPAM THREAD (NO CPU BLAST)
+---------------------------------------------------------------------
+-- Hanya 1 thread, loop internal terkontrol & aman
+local function SpamThreaded(total_calls, callback)
+    total_calls = math.clamp(total_calls, 1, 25) -- Limit agar aman
+
+    task.spawn(function()
+        for i = 1, total_calls do
+            local ok = pcall(callback)
+            if not ok then break end
+            task.wait() -- sangat ringan (~0.03 ms)
+        end
+    end)
+end
+
+---------------------------------------------------------------------
+-- MAIN AUTO FISHING V1
+---------------------------------------------------------------------
 function AutoFishingV1()
 
     if RuntimeState.IsFishingV1 then
-
         warn("[AutoFishingV1] Already running")
-
         return
-
     end
 
-    
-
     task.spawn(function()
-
         RuntimeState.IsFishingV1 = true
-
-        print("[AutoFishingV1] Started - AGGRESSIVE PARALLEL SPAM Mode")
-
-        
+        print("[AutoFishingV1] Started - Efficient Spam Mode")
 
         local consecutiveErrors = 0
-
         local maxConsecutiveErrors = 10
-
-        
 
         while Config.AutoFishingV1 and RuntimeState.IsFishingV1 do
 
             local cycleSuccess = false
 
-            
-
             local success, err = pcall(function()
 
-                
-
+                ---------------------------------------------------------
                 -- Wait if selling
-
+                ---------------------------------------------------------
                 while RuntimeState.IsSelling do
-
                     task.wait(0.5)
-
                 end
 
-                
-
+                ---------------------------------------------------------
                 -- Validate character
-
+                ---------------------------------------------------------
                 if not LocalPlayer.Character or not HumanoidRootPart then
-
-                    repeat task.wait(0.5) until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    repeat task.wait(0.5)
+                    until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 
                     Character = LocalPlayer.Character
-
                     HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
                 end
 
-                
-
-                -- Step 1: Equip Rod (Sinkron)
-
+                ---------------------------------------------------------
+                -- STEP 1: Equip Rod (Sync)
+                ---------------------------------------------------------
                 if Remotes.EquipTool then
-
                     local equipOk = pcall(function()
-
                         Remotes.EquipTool:FireServer(1)
-
                     end)
-
-                    if not equipOk then
-
-                        error("Equip failed")
-
-                    end
-
-                    task.wait(0.1) -- Jeda lebih cepat
-
+                    if not equipOk then error("Equip failed") end
+                    task.wait(0.1)
                 end
 
-                
+                ---------------------------------------------------------
+                -- STEP 2 & 3: ChargeRod + StartMini (Efficient Spam)
+                ---------------------------------------------------------
+                local THREADS = math.clamp(Config.FishingThreads or 3, 1, 10)
+                local TOTAL_SPAM = THREADS * 3   -- total spam ringan tapi agresif
 
-                -- =================================================
-
-                -- Step 2 & 3: Charge Rod & Start Minigame (PARALEL)
-
-                -- =================================================
-
-
-
-                -- Try to Charge Rod (ASYNC)
-
+                -- Charge Rod
                 if Remotes.ChargeRod then
-
-                    task.spawn(function()
-
-                        pcall(function()
-
-                            -- Spam charge attempts asynchronously for speed
-
-                            for attempt = 1, 3 do 
-
-                                Remotes.ChargeRod:InvokeServer(tick())
-
-                                task.wait(0.01)
-
-                            end
-
-                        end)
-
+                    SpamThreaded(TOTAL_SPAM, function()
+                        Remotes.ChargeRod:InvokeServer(tick())
                     end)
-
                 end
 
-
-
-                -- Try to Start Minigame (ASYNC)
-
+                -- Start Minigame
                 if Remotes.StartMini then
-
-                    task.spawn(function()
-
-                        pcall(function()
-
-                            -- Spam start attempts asynchronously for speed
-
-                            for attempt = 1, 3 do 
-
-                                Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
-
-                                task.wait(0.01)
-
-                            end
-
-                        end)
-
+                    SpamThreaded(TOTAL_SPAM, function()
+                        Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
                     end)
-
                 end
 
-                
+                task.wait(0.1)
 
-                task.wait(0.1) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
-
-                
-
-                -- Step 4: Wait for bite
-
-                local actualDelay = math.max(Config.FishingDelay or 0.25, 0.1) -- Delay yang lebih rendah
-
+                ---------------------------------------------------------
+                -- STEP 4: WAIT BITE
+                ---------------------------------------------------------
+                local actualDelay = math.max(Config.FishingDelay or 0.25, 0.1)
                 task.wait(actualDelay)
 
-                
-
-                -- =================================================
-
-                -- Step 5: Finish Fishing (SPAM 5X)
-
-                -- =================================================
-
+                ---------------------------------------------------------
+                -- STEP 5: FINISH FISH (Efficient Spam)
+                ---------------------------------------------------------
                 if Remotes.FinishFish then
 
-                    local finishedAtLeastOnce = false
+                    local finishedOnce = false
 
-                    
-
-                    for i = 1, 5 do -- Spam FinishFish 5 kali
-
-                        local finishOk = pcall(function()
-
+                    SpamThreaded(TOTAL_SPAM, function()
+                        local ok = pcall(function()
                             Remotes.FinishFish:FireServer()
-
                         end)
+                        if ok then finishedOnce = true end
+                    end)
 
-                        
-
-                        if finishOk then
-
-                            finishedAtLeastOnce = true
-
-                        end
-
-                        task.wait(0.02) -- Jeda sangat singkat antar spam
-
-                    end
-
-
-
-                    if finishedAtLeastOnce then
-
+                    if finishedOnce then
                         cycleSuccess = true
-
                         RuntimeState.LastFishTime = tick()
-
                         consecutiveErrors = 0
-
                     else
-
-                        error("Finish Fishing spam failed 5 times")
-
+                        error("FinishFish failed on all attempts")
                     end
-
                 end
 
-                
-
-                task.wait(0.05) -- Jeda sangat pendek setelah siklus sukses
+                task.wait(0.05)
 
             end)
 
-            
-
+            ---------------------------------------------------------
+            -- ERROR HANDLING
+            ---------------------------------------------------------
             if not success then
-
-                consecutiveErrors = consecutiveErrors + 1
-
+                consecutiveErrors += 1
                 warn("[AutoFishingV1] Cycle error:", err, "| Consecutive errors:", consecutiveErrors)
 
-                
-
                 if consecutiveErrors >= maxConsecutiveErrors then
-
-                    warn("[AutoFishingV1] Too many errors, stopping...")
-
+                    warn("[AutoFishingV1] Too many errors, stopping AutoFishing...")
                     Config.AutoFishingV1 = false
-
-                    -- Rayfield:Notify(...) -- Diasumsikan notifikasi GUI sudah terdefinisi
-
                     break
-
                 end
 
-                
-
-                task.wait(1) -- Wait longer on error
+                task.wait(1)
 
             elseif cycleSuccess then
-
-                task.wait(0.05) -- Short wait on success
+                task.wait(0.05)
 
             else
-
-                task.wait(0.3) -- Medium wait on partial success
-
+                task.wait(0.3)
             end
-
         end
 
-        
-
         ResetFishingState()
-
         print("[AutoFishingV1] Stopped")
 
     end)
-
 end
+
 
 -- ============================================================================
 -- AUTO FISHING V2 (GAME AUTO)
@@ -987,12 +899,11 @@ end
 -- AUTO FISHING V3 (STABLE - FIXED)
 -- ============================================================================
 
--- ULTRA TURBO CONFIG (EXTREME)
-Config.ParallelThreads = 3           -- Parallel 4 (lebih brutal dari 3)
-Config.ThreadDelayInitial = 0.30     -- Langsung cepat dari awal
-Config.ThreadDelayMin = 0.45        -- BATAS BAWAH GILA (di bawah ini sangat rawan DC)
-Config.DelayAdjustmentStep = 0.02   -- Adaptasi cepat dan agresif
-
+-- Konfigurasi Parallel---
+Config.ParallelThreads = 5   -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
+Config.ThreadDelayInitial = 1.15 -- Delay awal per thread (dalam detik)
+Config.ThreadDelayMin = 0.28   -- Delay minimum yang diizinkan (Agar tidak terlalu cepat/DC)
+Config.DelayAdjustmentStep = 0.05 -- Seberapa besar delay dikurangi/ditambah setiap siklus
 
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
@@ -1001,122 +912,107 @@ function AutoFishingV3()
     end
 
     RuntimeState.IsFishingV3 = true
-    print("[AutoFishingV3] ULTRA TURBO MODE ("
-        .. Config.ParallelThreads .. " Threads) - EXTREME ACTIVE")
+    print("[AutoFishingV3] Started - PARALLEL MODE (" .. Config.ParallelThreads .. " Threads) - ADAPTIVE DELAY")
 
+    -- Fungsi untuk satu siklus pancingan (Single Thread)
     local function StartFishingThread(threadID)
         task.spawn(function()
-            -- Offset awal supaya 4 thread nggak hajar server di milidetik yang sama
-            task.wait(math.random(5, 25) / 100)
-
-            print("[Thread " .. threadID .. "] ULTRA TURBO Started")
-
+            print("[Thread " .. threadID .. "] Active")
             local consecutiveErrors = 0
-            local currentDelay = Config.ThreadDelayInitial
-
+            -- Delay saat ini untuk thread ini
+            local currentDelay = Config.ThreadDelayInitial 
+            
             while Config.AutoFishingV3 and RuntimeState.IsFishingV3 do
                 local success, err = pcall(function()
-
-                    -- Hanya Thread 1 yang urus inventory & equip
+                    
+                    -- Step 0: Cek Inventory & Karakter (Hanya Thread 1 yang urus inventory agar tidak crash)
                     if threadID == 1 then
                         local invCount = RefreshInventoryCount()
                         if invCount >= 4400 and Config.AutoSell then
                             SellAllFish()
-                            task.wait(0.4) -- jangan terlalu lama
+                            task.wait(1)
                         end
-
-                        if Remotes.EquipTool and not Character:FindFirstChildWhichIsA("Tool") then
+                        
+                        -- Equip Rod (Cukup sekali di awal atau jika lepas)
+                        if Remotes.EquipTool and (not Character:FindFirstChildWhichIsA("Tool")) then
                             Remotes.EquipTool:FireServer(1)
-                            task.wait(0.08)
+                            task.wait(0.2)
                         end
                     end
 
-                    -- CHARGE ROD (retry cepat)
+                    -- Step 1: Charge Rod (Dipercepat)
                     if Remotes.ChargeRod then
+                        local chargeSuccess = false
                         for attempt = 1, 3 do
-                            local ok = pcall(function()
-                                Remotes.ChargeRod:InvokeServer(tick() + threadID)
-                            end)
-                            if ok then break end
-                            task.wait(0.02) -- super singkat
+                             -- Gunakan tick() unik per thread agar tidak dianggap spam duplikat
+                            local ok = pcall(function() Remotes.ChargeRod:InvokeServer(tick() + threadID) end)
+                            if ok then chargeSuccess = true break end
+                            task.wait(0.05)
                         end
                     end
-
-                    -- START MINIGAME (acak sedikit biar natural)
+                    
+                    -- Step 2: Start Minigame
                     if Remotes.StartMini then
-                        pcall(function()
-                            Remotes.StartMini:InvokeServer(
-                                -1.233 + (math.random() / 250),
-                                0.994 + (math.random() / 250)
-                            )
+                         -- Koordinat sedikit diacak agar terlihat natural bagi server
+                        pcall(function() 
+                            Remotes.StartMini:InvokeServer(-1.233 + (math.random()/100), 0.994 + (math.random()/100)) 
                         end)
                     end
+                    
+                    -- Step 3: Wait Time (DYNAMIC/ADAPTIVE DELAY)
+                    task.wait(currentDelay) 
 
-                    -- ULTRA TURBO DELAY
-                    task.wait(currentDelay)
-
-                    -- FINISH FISH
+                    -- Step 4: Finish Fishing
                     if Remotes.FinishFish then
-                        pcall(function()
-                            Remotes.FinishFish:FireServer()
-                        end)
+                        pcall(function() Remotes.FinishFish:FireServer() end)
                     end
 
-                    -- ADAPTIVE DELAY (AGRESIF)
+                    -- LOGIKA ADAPTIVE DELAY (BERHASIL)
+                    -- Kurangi delay sedikit, tapi tidak boleh lebih rendah dari batas minimum
                     if currentDelay > Config.ThreadDelayMin then
-                        currentDelay = currentDelay - Config.DelayAdjustmentStep
-                        if currentDelay < Config.ThreadDelayMin then
-                            currentDelay = Config.ThreadDelayMin
-                        end
-
-                        -- anti-pattern: sedikit random naik turun
-                        currentDelay = currentDelay + ((math.random() - 0.5) * 0.008)
-                        if currentDelay < Config.ThreadDelayMin then
-                            currentDelay = Config.ThreadDelayMin
-                        end
+                        currentDelay = math.max(Config.ThreadDelayMin, currentDelay - Config.DelayAdjustmentStep)
+                        -- print("[Thread " .. threadID .. "] Delay Reduced to: " .. string.format("%.3f", currentDelay))
                     end
-
-                    -- reset error counter kalau berhasil
+                    -- Reset error count jika berhasil sampai sini
                     consecutiveErrors = 0
                 end)
 
-                -- ERROR HANDLING ULTRA
                 if not success then
                     consecutiveErrors = consecutiveErrors + 1
-
-                    if consecutiveErrors >= 2 then
-                        -- Naikkan delay cukup besar supaya stabil lagi
-                        currentDelay = currentDelay + (Config.DelayAdjustmentStep * 3.0)
-                        print("[Thread " .. threadID .. "] ⚠ ULTRA ERROR! Delay Raised to: "
-                            .. string.format("%.4f", currentDelay))
-                        consecutiveErrors = 0
+                    
+                    -- LOGIKA ADAPTIVE DELAY (ERROR BERUNTUN)
+                    -- Jika error, tingkatkan delay sedikit untuk menstabilkan diri
+                    if consecutiveErrors >= 3 then -- Atur ambang batas error (misal: 3x error beruntun)
+                        currentDelay = currentDelay + (Config.DelayAdjustmentStep * 2) -- Tingkatkan lebih banyak dari penurunan
+                        print("[Thread " .. threadID .. "] **ERROR TINGGI!** Delay Increased to: " .. string.format("%.3f", currentDelay))
+                        consecutiveErrors = 0 -- Reset setelah kenaikan delay
                     else
-                        -- cooldown sangat singkat antar error
-                        task.wait(0.18)
+                         -- Jika error, thread ini istirahat sebentar, tapi thread lain tetap jalan
+                        task.wait(1) 
                     end
                 end
-
-                -- Loop antar siklus (super kecil)
-                task.wait(0.0025)
+                
+                -- Jeda sangat singkat antar loop per thread
+                task.wait(0.01) -- Jeda antar loop thread (ini BUKAN jeda memancing)
             end
-
-            print("[Thread " .. threadID .. "] ULTRA TURBO Stopped")
+            print("[Thread " .. threadID .. "] Stopped")
         end)
     end
 
-    -- START 4 THREAD PARALLEL
+    -- MENJALANKAN THREAD SECARA PARALLEL
+    -- Ini akan membuat loop terpisah sebanyak Config.ParallelThreads
     for i = 1, Config.ParallelThreads do
         StartFishingThread(i)
-        -- Sedikit jeda antar thread spawn
-        task.wait(0.05)
+        -- Beri jeda sedikit saat start agar tidak menembak server serentak di milidetik yang sama
+        task.wait(0.1) 
     end
 end
 
+-- Fungsi Stop (Untuk mematikan semua thread)
 function StopAutoFishing()
     RuntimeState.IsFishingV3 = false
     Config.AutoFishingV3 = false
 end
-
 
 -- ============================================================================
 -- AUTO FISHING - NEW METHOD (EQUIP ONCE) - EXTREME SPEED 5x
@@ -3029,15 +2925,29 @@ local function CreateUI()
         end
     })
     
-    Tab1:CreateSlider({
-        Name = "Fishing Delay (V1 & New Method)",
-        Range = {0.1, 5},
-        Increment = 0.1,
-        CurrentValue = Config.FishingDelay,
-        Callback = function(Value)
-            Config.FishingDelay = Value
+    Tab1:CreateInput({
+        Name = "fishing Threshold (1-4500)",
+        PlaceholderText = "Enter threshold (default: 100)",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            local number = tonumber(Text)
+            if number and number >= 0.0001 and number <= 4500 then
+                Config.FishingDelay = number
+                Rayfield:Notify({
+                    Title = "Threshold Updated",
+                    Content = "New threshold: " .. number .. " fish",
+                    Duration = 3
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Invalid Input",
+                    Content = "Enter number between 1-4500",
+                    Duration = 3
+                })
+            end
         end
     })
+    
     
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
