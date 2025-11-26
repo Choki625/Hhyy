@@ -27,12 +27,12 @@ local selectedMode = "Fast";
 -- Ganti ini dengan referensi objek RemoteFunction/RemoteEvent yang BENAR dalam game Anda.
 local v6 = {
     Functions = {
-        Cancel = nil, -- RemoteFunction
-        ChargeRod = nil, -- RemoteFunction
-        StartMini = nil, -- RemoteFunction
+        Cancel = v5.Net["RF/CancelFishingInputs"], -- RemoteFunction
+        ChargeRod = v5.Net["RF/ChargeFishingRod"], -- RemoteFunction
+        StartMini = v5.Net["RF/RequestFishingMinigameStarted"], -- RemoteFunction
     },
     Events = {
-        REFishDone = nil, -- RemoteEvent
+        REFishDone =  v5.Net["RE/FishingCompleted"], -- RemoteEvent
     }
 }
 -- Asumsikan 'v6' sudah berisi referensi yang valid saat skrip dijalankan.
