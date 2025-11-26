@@ -747,7 +747,7 @@ function AutoFishingV1()
 
                     end
 
-                    task.wait(0.2) -- Jeda lebih cepat
+                    task.wait(0.1) -- Jeda lebih cepat
 
                 end
 
@@ -813,7 +813,7 @@ function AutoFishingV1()
 
                 
 
-                task.wait(0.5) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
+                task.wait(0.2) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
 
                 
 
@@ -853,7 +853,7 @@ function AutoFishingV1()
 
                         end
 
-                        task.wait(0.01) -- Jeda sangat singkat antar spam
+                        task.wait(0.02) -- Jeda sangat singkat antar spam
 
                     end
 
@@ -987,133 +987,100 @@ end
 -- AUTO FISHING V3 (STABLE - FIXED)
 -- ============================================================================
 
+-- Konfigurasi Parallel
+Config.ParallelThreads = 5  -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
+
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
         warn("[AutoFishingV3] Already running")
         return
     end
-    
-    task.spawn(function()
-        RuntimeState.IsFishingV3 = true
-        print("[AutoFishingV3] Started - Stable Mode (Fixed 1.5s delay)")
-        
-        local consecutiveErrors = 0
-        local maxConsecutiveErrors = 10
-        
-        while Config.AutoFishingV3 and RuntimeState.IsFishingV3 do
-            local success, err = pcall(function()
-                -- Wait if selling
-                while RuntimeState.IsSelling do
-                    task.wait(0.5)
-                end
-                
-                -- Validate character
-                if not LocalPlayer.Character or not HumanoidRootPart or 
-                   (LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health <= 0) then
-                    repeat task.wait(1) until LocalPlayer.Character and 
-                        LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
-                        LocalPlayer.Character.Humanoid.Health > 0
-                    Character = LocalPlayer.Character
-                    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-                    Humanoid = Character:WaitForChild("Humanoid")
-                end
-                
-                -- Check inventory before fishing
-                local invCount = RefreshInventoryCount()
-                if invCount >= 4400 and Config.AutoSell then
-                    print("[AutoFishingV3] Inventory nearly full, triggering sell...")
-                    SellAllFish()
-                    task.wait(2)
-                end
-                
-                -- Step 1: Equip Rod
-                if Remotes.EquipTool then
-                    pcall(function()
-                        Remotes.EquipTool:FireServer(1)
-                    end)
-                    task.wait(0.3)
-                end
-                
-                -- Step 2: Charge Rod
-                if Remotes.ChargeRod then
-                    local chargeSuccess = false
-                    for attempt = 1, 3 do
-                        local ok, result = pcall(function()
-                            return Remotes.ChargeRod:InvokeServer(tick())
-                        end)
-                        if ok and result then
-                            chargeSuccess = true
-                            break
-                        end
-                        task.wait(0.15)
-                    end
-                    
-                    if not chargeSuccess then
-                        error("Charge failed")
-                    end
-                end
-                task.wait(0.25)
-                
-                -- Step 3: Start Minigame
-                if Remotes.StartMini then
-                    local startSuccess = false
-                    for attempt = 1, 3 do
-                        local ok = pcall(function()
-                            Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
-                        end)
-                        if ok then
-                            startSuccess = true
-                            break
-                        end
-                        task.wait(0.15)
-                    end
-                    
-                    if not startSuccess then
-                        error("Start minigame failed")
-                    end
-                end
-                
-                -- Step 4: Fixed wait time (stable mode)
-                task.wait(1.5)
-                
-                -- Step 5: Finish Fishing
-                if Remotes.FinishFish then
-                    local finishOk = pcall(function()
-                        Remotes.FinishFish:FireServer()
-                    end)
-                    
-                    if finishOk then
-                        consecutiveErrors = 0
-                        RuntimeState.LastFishTime = tick()
-                        print("[AutoFishingV3] Successfully caught fish")
-                    end
-                end
-                
-                task.wait(0.5)
-            end)
+
+    RuntimeState.IsFishingV3 = true
+    print("[AutoFishingV3] Started - PARALLEL MODE (" .. Config.ParallelThreads .. " Threads)")
+
+    -- Fungsi untuk satu siklus pancingan (Single Thread)
+    local function StartFishingThread(threadID)
+        task.spawn(function()
+            print("[Thread " .. threadID .. "] Active")
+            local consecutiveErrors = 0
             
-            if not success then
-                consecutiveErrors = consecutiveErrors + 1
-                warn("[AutoFishingV3] Cycle error:", err, "| Consecutive errors:", consecutiveErrors)
-                
-                if consecutiveErrors >= maxConsecutiveErrors then
-                    warn("[AutoFishingV3] Too many errors, stopping...")
-                    Config.AutoFishingV3 = false
-                    Rayfield:Notify({
-                        Title = "AutoFishing V3",
-                        Content = "Stopped due to errors. Please restart manually.",
-                        Duration = 5
-                    })
-                    break
+            while Config.AutoFishingV3 and RuntimeState.IsFishingV3 do
+                local success, err = pcall(function()
+                    
+                    -- Step 0: Cek Inventory & Karakter (Hanya Thread 1 yang urus inventory agar tidak crash)
+                    if threadID == 1 then
+                        local invCount = RefreshInventoryCount()
+                        if invCount >= 4400 and Config.AutoSell then
+                            SellAllFish()
+                            task.wait(1)
+                        end
+                        
+                        -- Equip Rod (Cukup sekali di awal atau jika lepas)
+                        if Remotes.EquipTool and (not Character:FindFirstChildWhichIsA("Tool")) then
+                            Remotes.EquipTool:FireServer(1)
+                            task.wait(0.2)
+                        end
+                    end
+
+                    -- Step 1: Charge Rod (Dipercepat)
+                    if Remotes.ChargeRod then
+                        local chargeSuccess = false
+                        for attempt = 1, 3 do
+                             -- Gunakan tick() unik per thread agar tidak dianggap spam duplikat
+                            local ok = pcall(function() Remotes.ChargeRod:InvokeServer(tick() + threadID) end)
+                            if ok then chargeSuccess = true break end
+                            task.wait(0.05)
+                        end
+                    end
+                    
+                    -- Step 2: Start Minigame
+                    if Remotes.StartMini then
+                         -- Koordinat sedikit diacak agar terlihat natural bagi server
+                        pcall(function() 
+                            Remotes.StartMini:InvokeServer(-1.233 + (math.random()/100), 0.994 + (math.random()/100)) 
+                        end)
+                    end
+                    
+                    -- Step 3: Wait Time (Sangat Cepat - Parallel)
+                    -- Karena parallel, kita tidak butuh wait lama. Thread lain sedang mengisi kekosongan.
+                    task.wait(0.15) 
+
+                    -- Step 4: Finish Fishing
+                    if Remotes.FinishFish then
+                        pcall(function() Remotes.FinishFish:FireServer() end)
+                    end
+
+                    -- Reset error count jika berhasil sampai sini
+                    consecutiveErrors = 0
+                end)
+
+                if not success then
+                    consecutiveErrors = consecutiveErrors + 1
+                    -- Jika error, thread ini istirahat sebentar, tapi thread lain tetap jalan
+                    task.wait(1) 
                 end
                 
-                task.wait(2)
+                -- Jeda sangat singkat antar loop per thread
+                task.wait(0.1) 
             end
-        end
-        
-        RuntimeState.IsFishingV3 = false
-        print("[AutoFishingV3] Stopped")
-    end)
+            print("[Thread " .. threadID .. "] Stopped")
+        end)
+    end
+
+    -- MENJALANKAN THREAD SECARA PARALLEL
+    -- Ini akan membuat loop terpisah sebanyak Config.ParallelThreads
+    for i = 1, Config.ParallelThreads do
+        StartFishingThread(i)
+        -- Beri jeda sedikit saat start agar tidak menembak server serentak di milidetik yang sama
+        task.wait(0.1) 
+    end
+end
+
+-- Fungsi Stop (Untuk mematikan semua thread)
+function StopAutoFishing()
+    RuntimeState.IsFishingV3 = false
+    Config.AutoFishingV3 = false
 end
 
 -- ============================================================================
@@ -3008,29 +2975,34 @@ local function CreateUI()
         end
     })
     
-    Tab1:CreateInput({
-        Name = "auto fish delay",
-        PlaceholderText = "Enter delay (default: 0.4)",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(Text)
-            local number = tonumber(Text)
-            if number and number >= 0.001 and number <= 4500 then
-                Config.FishingDelay = number
+    Tab1:CreateToggle({
+        Name = "AUTO FISHING - NEW METHOD",
+        CurrentValue = Config.AutoFishingNewMethod,
+        Callback = function(Value)
+            Config.AutoFishingNewMethod = Value
+            if Value then
+                Config.AutoFishingV1 = false
+                Config.AutoFishingV2 = false
+                Config.AutoFishingV3 = false
+                AutoFishingNewMethod()
                 Rayfield:Notify({
-                    Title = "Threshold Updated",
-                    Content = "New threshold: " .. number .. " fish",
-                    Duration = 3
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Enter number between 1-4500",
+                    Title = "New Method",
+                    Content = "Equip rod once mode activated!",
                     Duration = 3
                 })
             end
         end
     })
     
+    Tab1:CreateSlider({
+        Name = "Fishing Delay (V1 & New Method)",
+        Range = {0.1, 5},
+        Increment = 0.1,
+        CurrentValue = Config.FishingDelay,
+        Callback = function(Value)
+            Config.FishingDelay = Value
+        end
+    })
     
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
