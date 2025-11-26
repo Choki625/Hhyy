@@ -863,8 +863,6 @@ function AutoFishingV1()
     end)
 end
 
-
-
 -- ============================================================================
 -- AUTO FISHING V2 (GAME AUTO)
 -- ============================================================================
@@ -2949,95 +2947,13 @@ local function CreateUI()
         end
     })
     
-    Tab1:CreateInput({
-        Name = "fishing delay (1-4500)",
-        PlaceholderText = "Enter threshold (default: 100)",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(Text)
-            local number = tonumber(Text)
-            if number and number >= 0.0001 and number <= 4500 then
-                Config.FishingDelay = number
-                Rayfield:Notify({
-                    Title = "Threshold Updated",
-                    Content = "New threshold: " .. number .. " fish",
-                    Duration = 3
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Enter number between 1-4500",
-                    Duration = 3
-                })
-            end
-        end
-    })
-    
-    Tab1:CreateInput({
-        Name = "Delay Speed V (1-4500)",
-        PlaceholderText = "Enter threshold (default: 100)",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(Text)
-            local number = tonumber(Text)
-            if number and number >= 0.0001 and number <= 4500 then
-                Config.Threads_ChargeRod = number
-                Rayfield:Notify({
-                    Title = "Threshold Updated",
-                    Content = "New threshold: " .. number .. " fish",
-                    Duration = 3
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Enter number between 1-4500",
-                    Duration = 3
-                })
-            end
-        end
-    })
-    
-    Tab1:CreateInput({
-        Name = "Delay Speed VV Threshold (1-4500)",
-        PlaceholderText = "Enter threshold (default: 100)",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(Text)
-            local number = tonumber(Text)
-            if number and number >= 0.0001 and number <= 4500 then
-                Config.Threads_StartMini = number
-                Rayfield:Notify({
-                    Title = "Threshold Updated",
-                    Content = "New threshold: " .. number .. " fish",
-                    Duration = 3
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Enter number between 1-4500",
-                    Duration = 3
-                })
-            end
-        end
-    })
-    
-    Tab1:CreateInput({
-        Name = "Delay Spam Fish (1-4500)",
-        PlaceholderText = "Enter threshold (default: 100)",
-        RemoveTextAfterFocusLost = false,
-        Callback = function(Text)
-            local number = tonumber(Text)
-            if number and number >= 0.0001 and number <= 4500 then
-                Config.SpamMultiplier = number
-                Rayfield:Notify({
-                    Title = "Threshold Updated",
-                    Content = "New threshold: " .. number .. " fish",
-                    Duration = 3
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Enter number between 1-4500",
-                    Duration = 3
-                })
-            end
+    Tab1:CreateSlider({
+        Name = "Fishing Delay (V1 & New Method)",
+        Range = {0.1, 5},
+        Increment = 0.1,
+        CurrentValue = Config.FishingDelay,
+        Callback = function(Value)
+            Config.FishingDelay = Value
         end
     })
     
