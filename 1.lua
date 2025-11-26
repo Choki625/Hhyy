@@ -771,7 +771,7 @@ function AutoFishingV1()
 
                             -- Spam charge attempts asynchronously for speed
 
-                            for attempt = 1, 5 do 
+                            for attempt = 1, 4 do 
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
@@ -797,7 +797,7 @@ function AutoFishingV1()
 
                             -- Spam start attempts asynchronously for speed
 
-                            for attempt = 1, 5 do 
+                            for attempt = 1, 4 do 
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
