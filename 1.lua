@@ -2874,7 +2874,7 @@ local function CreateUI()
     Tab1:CreateSection("AUTO FISHING MODES")
     
     Tab1:CreateToggle({
-        Name = "Blant Fishing Mode(FAST SPEED)",
+        Name = "Auto Fishing (FAST SPEED)",
         CurrentValue = Config.AutoFishingV1,
         Callback = function(Value)
             Config.AutoFishingV1 = Value
@@ -2911,6 +2911,43 @@ local function CreateUI()
         end
     })
     
+    Tab1:CreateToggle({
+        Name = "Auto Fishing Stable (Recommended for Quest)",
+        CurrentValue = Config.AutoFishingV3,
+        Callback = function(Value)
+            Config.AutoFishingV3 = Value
+            if Value then
+                Config.AutoFishingV1 = false
+                Config.AutoFishingV2 = false
+                Config.AutoFishingNewMethod = false
+                AutoFishingV3()
+                Rayfield:Notify({
+                    Title = "Auto Fishing V3",
+                    Content = "Stable mode (1.5s delay) activated!",
+                    Duration = 3
+                })
+            end
+        end
+    })
+    
+    Tab1:CreateToggle({
+        Name = "AUTO FISHING - NEW METHOD",
+        CurrentValue = Config.AutoFishingNewMethod,
+        Callback = function(Value)
+            Config.AutoFishingNewMethod = Value
+            if Value then
+                Config.AutoFishingV1 = false
+                Config.AutoFishingV2 = false
+                Config.AutoFishingV3 = false
+                AutoFishingNewMethod()
+                Rayfield:Notify({
+                    Title = "New Method",
+                    Content = "Equip rod once mode activated!",
+                    Duration = 3
+                })
+            end
+        end
+    })
     
     Tab1:CreateInput({
         Name = "fishing delay (1-4500)",
@@ -3003,7 +3040,6 @@ local function CreateUI()
             end
         end
     })
-    
     
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
