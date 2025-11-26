@@ -466,7 +466,7 @@ local Config = {
     AutoFishingV2 = false,
     AutoFishingV3 = false,
     AutoFishingNewMethod = false,
-    FishingDelay = 0.4,
+    FishingDelay = 0.3,
     PerfectCatch = false,
     
     -- Auto Features
@@ -771,11 +771,11 @@ function AutoFishingV1()
 
                             -- Spam charge attempts asynchronously for speed
 
-                            for attempt = 1, 4 do 
+                            for attempt = 1, 3 do 
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
-                                task.wait(0.9)
+                                task.wait(0.1)
 
                             end
 
@@ -797,11 +797,11 @@ function AutoFishingV1()
 
                             -- Spam start attempts asynchronously for speed
 
-                            for attempt = 1, 4 do 
+                            for attempt = 1, 3 do 
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
-                                task.wait(0.09)
+                                task.wait(0.1)
 
                             end
 
@@ -837,7 +837,7 @@ function AutoFishingV1()
 
                     
 
-                    for i = 1, 7 do -- Spam FinishFish 5 kali
+                    for i = 1, 5 do -- Spam FinishFish 5 kali
 
                         local finishOk = pcall(function()
 
@@ -3008,54 +3008,17 @@ local function CreateUI()
         end
     })
     
-    Tab1:CreateToggle({
-        Name = "AUTO FISHING - NEW METHOD",
-        CurrentValue = Config.AutoFishingNewMethod,
+    
+    Tab1:CreateSlider({
+        Name = "Fishing Delay (V1 & New Method)",
+        Range = {0.1, 5},
+        Increment = 0.1,
+        CurrentValue = Config.FishingDelay,
         Callback = function(Value)
-            Config.AutoFishingNewMethod = Value
-            if Value then
-                Config.AutoFishingV1 = false
-                Config.AutoFishingV2 = false
-                Config.AutoFishingV3 = false
-                AutoFishingNewMethod()
-                Rayfield:Notify({
-                    Title = "New Method",
-                    Content = "Equip rod once mode activated!",
-                    Duration = 3
-                })
-            end
+            Config.FishingDelay = Value
         end
     })
     
-    Tab1:CreateInput({
-        Name = "Fishing Delay (V1 & New Method)",
-        Placeholder = "0.1 to 5 (e.g., 1.5)",
-        CurrentValue = tostring(Config.FishingDelay), -- Nilai harus berupa string
-        Callback = function(Value)
-            local numberValue = tonumber(Value)
-            local minDelay = 0.1
-            local maxDelay = 5
-
-            if numberValue and numberValue >= minDelay and numberValue <= maxDelay then
-                Config.FishingDelay = numberValue
-                Rayfield:Notify({
-                    Title = "Fishing Delay Updated",
-                    Content = "Delay set to " .. string.format("%.1f", numberValue) .. "s.",
-                    Duration = 2
-                })
-            else
-                -- Notifikasi jika input tidak valid
-                Rayfield:Notify({
-                    Title = "Invalid Input",
-                    Content = "Please enter a number between " .. minDelay .. " and " .. maxDelay .. ".",
-                    Duration = 4
-                })
-                -- Opsional: Setel ulang input ke nilai Config yang terakhir valid
-                -- Ini mungkin memerlukan logika di luar CreateInput jika Anda ingin UI-nya diperbarui secara visual.
-            end
-        end
-    })
-
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
     Tab1:CreateButton({
