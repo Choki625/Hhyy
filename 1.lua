@@ -771,11 +771,11 @@ function AutoFishingV1()
 
                             -- Spam charge attempts asynchronously for speed
 
-                            for attempt = 1, 20 do 
+                            for attempt = 1, 4 do 
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
-                                task.wait(0.1)
+                                task.wait(0.9)
 
                             end
 
@@ -797,11 +797,11 @@ function AutoFishingV1()
 
                             -- Spam start attempts asynchronously for speed
 
-                            for attempt = 1, 20 do 
+                            for attempt = 1, 4 do 
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
-                                task.wait(0.1)
+                                task.wait(0.09)
 
                             end
 
@@ -837,7 +837,7 @@ function AutoFishingV1()
 
                     
 
-                    for i = 1, 25 do -- Spam FinishFish 5 kali
+                    for i = 1, 9 do -- Spam FinishFish 5 kali
 
                         local finishOk = pcall(function()
 
