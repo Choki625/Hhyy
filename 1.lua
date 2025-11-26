@@ -775,7 +775,7 @@ function AutoFishingV1()
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
-                                task.wait(0.01)
+                                task.wait(0.1)
 
                             end
 
@@ -801,7 +801,7 @@ function AutoFishingV1()
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
-                                task.wait(0.01)
+                                task.wait(0.1)
 
                             end
 
@@ -813,7 +813,7 @@ function AutoFishingV1()
 
                 
 
-                task.wait(0.2) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
+                task.wait(0.5) -- Jeda singkat untuk memberi waktu Remote Parallel mencapai server
 
                 
 
