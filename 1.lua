@@ -22,9 +22,8 @@ _G.FishingDelay = _G.FishingDelay or 1.1
 _G.FBlatant = _G.FBlatant or false 
 
 local selectedMode = "Fast";
+local AutoFishingThread = nil -- Variabel untuk mengontrol thread utama auto-fishing
 
--- CATATAN PENTING:
--- Ganti ini dengan referensi objek RemoteFunction/RemoteEvent yang BENAR dalam game Anda.
 -- Asumsikan 'v5' didefinisikan di tempat lain dalam lingkungan eksekusi.
 local v6 = {
     Functions = {
@@ -36,7 +35,6 @@ local v6 = {
         REFishDone =  v5.Net["RE/FishingCompleted"], -- RemoteEvent
     }
 }
--- Asumsikan 'v6' sudah berisi referensi yang valid saat skrip dijalankan.
 
 local function SaveConfig()
     print("Configuration saved (Placeholder). Reel:", _G.Reel, "FishingDelay:", _G.FishingDelay)
@@ -47,6 +45,7 @@ end
 -- ====================================================================
 
 local Fastest = function()
+    -- [Kode Fastest sama seperti sebelumnya]
     task.spawn(function()
         pcall(function()
             v6.Functions.Cancel:InvokeServer();
@@ -66,6 +65,7 @@ local Fastest = function()
 end;
 
 local RandomResult = function()
+    -- [Kode RandomResult sama seperti sebelumnya]
     task.spawn(function()
         pcall(function()
             v6.Functions.Cancel:InvokeServer();
@@ -85,100 +85,113 @@ local RandomResult = function()
     end);
 end;
 
--- ====================================================================
--- RAYFIELD UI ELEMENTS
--- ====================================================================
+-- Variabel untuk memastikan UI hanya dibuat sekali
+local UIInitialized = false
+local FishTab = nil
 
-local FishTab = Window:CreateTab("Fish", "rbxassetid://6820023607")
+---
+## 🚀 Main Initialization & Auto-Fishing Control Function
+---
 
--- HANYA SATU DEKLARASI DI SINI, diikuti oleh elemen UI di bawahnya.
-local BlatantSection = FishTab:CreateSection("Blatant Features [BETA]")
+local function Main()
+    -- === 1. Inisialisasi UI (Hanya dilakukan sekali) ===
+    if not UIInitialized then
+        -- DEKLARASI FISH TAB DIPINDAH DI SINI
+        FishTab = Window:CreateTab("Fish", "rbxassetid://6820023607")
 
--- 1. Dropdown
-BlatantSection:CreateDropdown({
-    Name = "Fishing Mode",
-    Options = {"Fast", "Random Result"},
-    CurrentOption = selectedMode,
-    Callback = function(mode)
-        selectedMode = mode;
-    end,
-})
+        local BlatantSection = FishTab:CreateSection("Blatant Features [BETA]")
 
--- 2. Input Delay Reel
-BlatantSection:CreateInput({
-    Name = "Delay Reel",
-    Placeholder = "Waktu jeda antar siklus pancing (1.9)",
-    Default = tostring(_G.Reel),
-    Callback = function(input)
-        local num = tonumber(input);
-        if num and num > 0 then
-            _G.Reel = num;
-        end;
-        SaveConfig();
-    end,
-})
+        -- 1. Dropdown
+        BlatantSection:CreateDropdown({
+            Name = "Fishing Mode",
+            Options = {"Fast", "Random Result"},
+            CurrentOption = selectedMode,
+            Callback = function(mode)
+                selectedMode = mode;
+                if _G.FBlatant then Main() end -- Panggil Main() untuk memperbarui mode loop
+            end,
+        })
 
--- 3. Input Delay Fishing
-BlatantSection:CreateInput({
-    Name = "Delay Fishing",
-    Placeholder = "Waktu jeda internal dalam siklus (1.1)",
-    Default = tostring(_G.FishingDelay),
-    Callback = function(input)
-        local num = tonumber(input);
-        if num and num > 0 then
-            _G.FishingDelay = num;
-        end;
-        SaveConfig();
-    end,
-})
+        -- 2. Input Delay Reel
+        BlatantSection:CreateInput({
+            Name = "Delay Reel",
+            Placeholder = "Waktu jeda antar siklus pancing (1.9)",
+            Default = tostring(_G.Reel),
+            Callback = function(input)
+                local num = tonumber(input);
+                if num and num > 0 then _G.Reel = num; end;
+                SaveConfig();
+            end,
+        })
 
--- 4. Toggle untuk Mengaktifkan Auto-Fishing
-BlatantSection:CreateToggle({
-    Name = "Blatant Fishing",
-    Default = _G.FBlatant,
-    Callback = function(state)
-        _G.FBlatant = state;
-        if state then
-            -- === THREAD 1: Pancing Otomatis Utama ===
-            task.spawn(function()
-                while _G.FBlatant do
-                    if selectedMode == "Fast" then
-                        Fastest();
-                    elseif selectedMode == "Random Result" then
-                        RandomResult();
-                    end;
-                    task.wait(_G.Reel);
+        -- 3. Input Delay Fishing
+        BlatantSection:CreateInput({
+            Name = "Delay Fishing",
+            Placeholder = "Waktu jeda internal dalam siklus (1.1)",
+            Default = tostring(_G.FishingDelay),
+            Callback = function(input)
+                local num = tonumber(input);
+                if num and num > 0 then _G.FishingDelay = num; end;
+                SaveConfig();
+            end,
+        })
+
+        -- 4. Toggle untuk Mengaktifkan Auto-Fishing
+        BlatantSection:CreateToggle({
+            Name = "Blatant Fishing",
+            Default = _G.FBlatant,
+            Callback = function(state)
+                _G.FBlatant = state;
+                Main(); -- Panggil Main() untuk memulai/menghentikan loop
+            end,
+        })
+
+        -- 5. Button untuk Recovery
+        BlatantSection:CreateButton({
+            Name = "Recovery Fishing",
+            Callback = function()
+                pcall(function()
+                    v6.Functions.Cancel:InvokeServer();
+                    Rayfield:Notify({
+                        Title = "Fishing System",
+                        Content = "Recovery Successfully!",
+                        Duration = 5,
+                        Image = 4483362458
+                    })
+                end);
+            end,
+        })
+        
+        UIInitialized = true
+    end
+
+    -- === 2. Kontrol Auto-Fishing Thread ===
+    
+    -- Selalu batalkan thread lama jika ada, untuk menghindari duplikasi
+    if AutoFishingThread then 
+        task.cancel(AutoFishingThread)
+        AutoFishingThread = nil
+    end
+
+    if _G.FBlatant then
+        AutoFishingThread = task.spawn(function()
+            while _G.FBlatant do
+                if selectedMode == "Fast" then
+                    Fastest();
+                elseif selectedMode == "Random Result" then
+                    RandomResult();
                 end;
-            end);
-            
-            -- === THREAD 2: Pancing Cepat Tambahan (Hanya Mode Fast) ===
-            task.spawn(function()
-                while _G.FBlatant do
-                    if selectedMode == "Fast" then
-                        -- Memanggil Fastest() lagi untuk thread kedua. 
-                        -- Dapat menggunakan jeda yang sedikit berbeda untuk 'desync'.
-                        Fastest(); 
-                    end;
-                    -- Menggunakan jeda Reel yang sama atau dimodifikasi, misalnya: _G.Reel - 0.1
-                    task.wait(_G.Reel); 
-                end;
-            end);
-        end;
-    end,
-})
-
--- 5. Button untuk Recovery
-BlatantSection:CreateButton({
-    Name = "Recovery Fishing",
-    Callback = function()
-        pcall(function()
-            v6.Functions.Cancel:InvokeServer();
-            Rayfield:Notify({
-                Title = "Fishing System",
-                Content = "Recovery Successfully!",
-                Duration = 5,
-                Image = 4483362458
-            })
+                task.wait(_G.Reel);
+            end;
         end);
-    end,
-})
+    end
+end
+
+-- ====================================================================
+-- EKSEKUSI
+-- ====================================================================
+
+-- Panggil Main() di akhir skrip untuk:
+-- 1. Menginisialisasi seluruh UI (termasuk FishTab) hanya sekali.
+-- 2. Memastikan loop Auto-Fishing dimulai jika _G.FBlatant sudah True secara default.
+Main()
