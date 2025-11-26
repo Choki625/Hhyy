@@ -990,7 +990,7 @@ end
 -- ULTRA TURBO CONFIG (EXTREME)
 Config.ParallelThreads = 3           -- Parallel 4 (lebih brutal dari 3)
 Config.ThreadDelayInitial = 0.30     -- Langsung cepat dari awal
-Config.ThreadDelayMin = 0.25        -- BATAS BAWAH GILA (di bawah ini sangat rawan DC)
+Config.ThreadDelayMin = 0.45        -- BATAS BAWAH GILA (di bawah ini sangat rawan DC)
 Config.DelayAdjustmentStep = 0.02   -- Adaptasi cepat dan agresif
 
 
