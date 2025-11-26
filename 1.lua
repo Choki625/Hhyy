@@ -988,7 +988,7 @@ end
 -- ============================================================================
 
 -- Konfigurasi Parallel
-Config.ParallelThreads = 5  -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
+Config.ParallelThreads = 3  -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
 
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
@@ -1073,7 +1073,7 @@ function AutoFishingV3()
     for i = 1, Config.ParallelThreads do
         StartFishingThread(i)
         -- Beri jeda sedikit saat start agar tidak menembak server serentak di milidetik yang sama
-        task.wait(0.1) 
+        task.wait(0.5) 
     end
 end
 
