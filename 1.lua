@@ -669,9 +669,15 @@ end
 ---------------------------------------------------------------------
 -- CONFIG
 ---------------------------------------------------------------------
-Config.FishingDelay = 0.25
-Config.FishingThreads = 3             -- jumlah agresivitas spam
-Config.AutoFishingV1 = false          -- toggle utama
+
+-- THREAD TERPISAH
+Config.Threads_ChargeRod  = 3       -- jumlah thread khusus ChargeRod
+Config.Threads_StartMini   = 2       -- jumlah thread khusus StartMini
+
+Config.SpamMultiplier      = 3       -- total spam = threads * multiplier
+
+Config.AutoFishingV1 = false         -- toggle utama
+
 
 ---------------------------------------------------------------------
 -- RUNTIME STATE
@@ -680,29 +686,43 @@ RuntimeState.IsFishingV1 = false
 RuntimeState.IsSelling = false
 RuntimeState.LastFishTime = tick()
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character
+local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+
+local Remotes = {
+    EquipTool   = game.ReplicatedStorage:WaitForChild("EquipTool", 5),
+    ChargeRod   = game.ReplicatedStorage:WaitForChild("ChargeRod", 5),
+    StartMini   = game.ReplicatedStorage:WaitForChild("StartMini", 5),
+    FinishFish  = game.ReplicatedStorage:WaitForChild("FinishFish", 5)
+}
+
+
 ---------------------------------------------------------------------
--- FUNCTION: RESET STATE
+-- RESET
 ---------------------------------------------------------------------
 local function ResetFishingState()
     RuntimeState.IsFishingV1 = false
     RuntimeState.LastFishTime = tick()
 end
 
+
 ---------------------------------------------------------------------
--- FUNCTION: ULTRA-EFFICIENT SPAM THREAD (NO CPU BLAST)
+-- ULTRA-EFFICIENT SPAM THREAD (1 THREAD ONLY)
 ---------------------------------------------------------------------
--- Hanya 1 thread, loop internal terkontrol & aman
 local function SpamThreaded(total_calls, callback)
-    total_calls = math.clamp(total_calls, 1, 25) -- Limit agar aman
+    total_calls = math.clamp(total_calls, 1, 25)
 
     task.spawn(function()
         for i = 1, total_calls do
             local ok = pcall(callback)
             if not ok then break end
-            task.wait() -- sangat ringan (~0.03 ms)
+            task.wait()
         end
     end)
 end
+
 
 ---------------------------------------------------------------------
 -- MAIN AUTO FISHING V1
@@ -728,25 +748,25 @@ function AutoFishingV1()
             local success, err = pcall(function()
 
                 ---------------------------------------------------------
-                -- Wait if selling
+                -- WAIT IF SELLING
                 ---------------------------------------------------------
                 while RuntimeState.IsSelling do
                     task.wait(0.5)
                 end
 
                 ---------------------------------------------------------
-                -- Validate character
+                -- VALIDATE CHARACTER
                 ---------------------------------------------------------
                 if not LocalPlayer.Character or not HumanoidRootPart then
                     repeat task.wait(0.5)
-                    until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    until LocalPlayer.Character and LocalPlayer.Character:FindChild("HumanoidRootPart")
 
                     Character = LocalPlayer.Character
                     HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
                 end
 
                 ---------------------------------------------------------
-                -- STEP 1: Equip Rod (Sync)
+                -- STEP 1: EQUIP ROD
                 ---------------------------------------------------------
                 if Remotes.EquipTool then
                     local equipOk = pcall(function()
@@ -757,21 +777,25 @@ function AutoFishingV1()
                 end
 
                 ---------------------------------------------------------
-                -- STEP 2 & 3: ChargeRod + StartMini (Efficient Spam)
+                -- STEP 2 & 3 (DIRUBAH): THREAD TERPISAH
                 ---------------------------------------------------------
-                local THREADS = math.clamp(Config.FishingThreads or 3, 1, 10)
-                local TOTAL_SPAM = THREADS * 3   -- total spam ringan tapi agresif
 
-                -- Charge Rod
+                -- ChargeRod spam
+                local THREAD_CR = math.clamp(Config.Threads_ChargeRod or 3, 1, 10)
+                local TOTAL_CR = THREAD_CR * (Config.SpamMultiplier or 3)
+
                 if Remotes.ChargeRod then
-                    SpamThreaded(TOTAL_SPAM, function()
+                    SpamThreaded(TOTAL_CR, function()
                         Remotes.ChargeRod:InvokeServer(tick())
                     end)
                 end
 
-                -- Start Minigame
+                -- StartMini spam
+                local THREAD_SM = math.clamp(Config.Threads_StartMini or 2, 1, 10)
+                local TOTAL_SM = THREAD_SM * (Config.SpamMultiplier or 3)
+
                 if Remotes.StartMini then
-                    SpamThreaded(TOTAL_SPAM, function()
+                    SpamThreaded(TOTAL_SM, function()
                         Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
                     end)
                 end
@@ -785,13 +809,13 @@ function AutoFishingV1()
                 task.wait(actualDelay)
 
                 ---------------------------------------------------------
-                -- STEP 5: FINISH FISH (Efficient Spam)
+                -- STEP 5: FINISH FISH
                 ---------------------------------------------------------
                 if Remotes.FinishFish then
 
                     local finishedOnce = false
 
-                    SpamThreaded(TOTAL_SPAM, function()
+                    SpamThreaded(10, function()
                         local ok = pcall(function()
                             Remotes.FinishFish:FireServer()
                         end)
@@ -803,7 +827,7 @@ function AutoFishingV1()
                         RuntimeState.LastFishTime = tick()
                         consecutiveErrors = 0
                     else
-                        error("FinishFish failed on all attempts")
+                        error("FinishFish failed")
                     end
                 end
 
@@ -816,10 +840,10 @@ function AutoFishingV1()
             ---------------------------------------------------------
             if not success then
                 consecutiveErrors += 1
-                warn("[AutoFishingV1] Cycle error:", err, "| Consecutive errors:", consecutiveErrors)
+                warn("[AutoFishingV1] Cycle error:", err, "| Consecutive:", consecutiveErrors)
 
                 if consecutiveErrors >= maxConsecutiveErrors then
-                    warn("[AutoFishingV1] Too many errors, stopping AutoFishing...")
+                    warn("[AutoFishingV1] Too many errors, stopping...")
                     Config.AutoFishingV1 = false
                     break
                 end
@@ -828,7 +852,6 @@ function AutoFishingV1()
 
             elseif cycleSuccess then
                 task.wait(0.05)
-
             else
                 task.wait(0.3)
             end
@@ -839,6 +862,7 @@ function AutoFishingV1()
 
     end)
 end
+
 
 
 -- ============================================================================
@@ -2850,7 +2874,7 @@ local function CreateUI()
     Tab1:CreateSection("AUTO FISHING MODES")
     
     Tab1:CreateToggle({
-        Name = "Auto Fishing (FAST SPEED)",
+        Name = "Blant Fishing Mode(FAST SPEED)",
         CurrentValue = Config.AutoFishingV1,
         Callback = function(Value)
             Config.AutoFishingV1 = Value
@@ -2887,38 +2911,24 @@ local function CreateUI()
         end
     })
     
-    Tab1:CreateToggle({
-        Name = "Auto Fishing Stable (Recommended for Quest)",
-        CurrentValue = Config.AutoFishingV3,
-        Callback = function(Value)
-            Config.AutoFishingV3 = Value
-            if Value then
-                Config.AutoFishingV1 = false
-                Config.AutoFishingV2 = false
-                Config.AutoFishingNewMethod = false
-                AutoFishingV3()
+    
+    Tab1:CreateInput({
+        Name = "fishing delay (1-4500)",
+        PlaceholderText = "Enter threshold (default: 100)",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            local number = tonumber(Text)
+            if number and number >= 0.0001 and number <= 4500 then
+                Config.FishingDelay = number
                 Rayfield:Notify({
-                    Title = "Auto Fishing V3",
-                    Content = "Stable mode (1.5s delay) activated!",
+                    Title = "Threshold Updated",
+                    Content = "New threshold: " .. number .. " fish",
                     Duration = 3
                 })
-            end
-        end
-    })
-    
-    Tab1:CreateToggle({
-        Name = "AUTO FISHING - NEW METHOD",
-        CurrentValue = Config.AutoFishingNewMethod,
-        Callback = function(Value)
-            Config.AutoFishingNewMethod = Value
-            if Value then
-                Config.AutoFishingV1 = false
-                Config.AutoFishingV2 = false
-                Config.AutoFishingV3 = false
-                AutoFishingNewMethod()
+            else
                 Rayfield:Notify({
-                    Title = "New Method",
-                    Content = "Equip rod once mode activated!",
+                    Title = "Invalid Input",
+                    Content = "Enter number between 1-4500",
                     Duration = 3
                 })
             end
@@ -2926,13 +2936,59 @@ local function CreateUI()
     })
     
     Tab1:CreateInput({
-        Name = "fishing Threshold (1-4500)",
+        Name = "Delay Speed V (1-4500)",
         PlaceholderText = "Enter threshold (default: 100)",
         RemoveTextAfterFocusLost = false,
         Callback = function(Text)
             local number = tonumber(Text)
             if number and number >= 0.0001 and number <= 4500 then
-                Config.FishingDelay = number
+                Config.Threads_ChargeRod = number
+                Rayfield:Notify({
+                    Title = "Threshold Updated",
+                    Content = "New threshold: " .. number .. " fish",
+                    Duration = 3
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Invalid Input",
+                    Content = "Enter number between 1-4500",
+                    Duration = 3
+                })
+            end
+        end
+    })
+    
+    Tab1:CreateInput({
+        Name = "Delay Speed VV Threshold (1-4500)",
+        PlaceholderText = "Enter threshold (default: 100)",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            local number = tonumber(Text)
+            if number and number >= 0.0001 and number <= 4500 then
+                Config.Threads_StartMini = number
+                Rayfield:Notify({
+                    Title = "Threshold Updated",
+                    Content = "New threshold: " .. number .. " fish",
+                    Duration = 3
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Invalid Input",
+                    Content = "Enter number between 1-4500",
+                    Duration = 3
+                })
+            end
+        end
+    })
+    
+    Tab1:CreateInput({
+        Name = "Delay Spam Fish (1-4500)",
+        PlaceholderText = "Enter threshold (default: 100)",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            local number = tonumber(Text)
+            if number and number >= 0.0001 and number <= 4500 then
+                Config.SpamMultiplier = number
                 Rayfield:Notify({
                     Title = "Threshold Updated",
                     Content = "New threshold: " .. number .. " fish",
