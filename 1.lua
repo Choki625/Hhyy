@@ -989,9 +989,9 @@ end
 
 -- Konfigurasi Parallel---
 Config.ParallelThreads = 5   -- Berapa banyak "pancingan virtual" yang jalan sekaligus (Saran: 3-5 agar tidak DC)
-Config.ThreadDelayInitial = 0.15 -- Delay awal per thread (dalam detik)
-Config.ThreadDelayMin = 0.08   -- Delay minimum yang diizinkan (Agar tidak terlalu cepat/DC)
-Config.DelayAdjustmentStep = 0.005 -- Seberapa besar delay dikurangi/ditambah setiap siklus
+Config.ThreadDelayInitial = 1.15 -- Delay awal per thread (dalam detik)
+Config.ThreadDelayMin = 0.28   -- Delay minimum yang diizinkan (Agar tidak terlalu cepat/DC)
+Config.DelayAdjustmentStep = 0.05 -- Seberapa besar delay dikurangi/ditambah setiap siklus
 
 function AutoFishingV3()
     if RuntimeState.IsFishingV3 then
