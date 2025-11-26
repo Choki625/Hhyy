@@ -837,7 +837,7 @@ function AutoFishingV1()
 
                     
 
-                    for i = 1, 9 do -- Spam FinishFish 5 kali
+                    for i = 1, 7 do -- Spam FinishFish 5 kali
 
                         local finishOk = pcall(function()
 
