@@ -466,7 +466,7 @@ local Config = {
     AutoFishingV2 = false,
     AutoFishingV3 = false,
     AutoFishingNewMethod = false,
-    FishingDelay = 0.3,
+    FishingDelay = 0.4,
     PerfectCatch = false,
     
     -- Auto Features
@@ -771,7 +771,7 @@ function AutoFishingV1()
 
                             -- Spam charge attempts asynchronously for speed
 
-                            for attempt = 1, 3 do 
+                            for attempt = 1, 20 do 
 
                                 Remotes.ChargeRod:InvokeServer(tick())
 
@@ -797,7 +797,7 @@ function AutoFishingV1()
 
                             -- Spam start attempts asynchronously for speed
 
-                            for attempt = 1, 3 do 
+                            for attempt = 1, 20 do 
 
                                 Remotes.StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
 
@@ -837,7 +837,7 @@ function AutoFishingV1()
 
                     
 
-                    for i = 1, 5 do -- Spam FinishFish 5 kali
+                    for i = 1, 25 do -- Spam FinishFish 5 kali
 
                         local finishOk = pcall(function()
 
@@ -3026,16 +3026,37 @@ local function CreateUI()
             end
         end
     })
-    
-    Tab1:CreateSlider({
+
+
+    Tab1:CreateInput({
         Name = "Fishing Delay (V1 & New Method)",
-        Range = {0.1, 5},
-        Increment = 0.1,
-        CurrentValue = Config.FishingDelay,
+        Placeholder = "0.1 to 5 (e.g., 1.5)",
+        CurrentValue = tostring(Config.FishingDelay), -- Nilai harus berupa string
         Callback = function(Value)
-            Config.FishingDelay = Value
+            local numberValue = tonumber(Value)
+            local minDelay = 0.1
+            local maxDelay = 5
+
+            if numberValue and numberValue >= minDelay and numberValue <= maxDelay then
+                Config.FishingDelay = numberValue
+                Rayfield:Notify({
+                    Title = "Fishing Delay Updated",
+                    Content = "Delay set to " .. string.format("%.1f", numberValue) .. "s.",
+                    Duration = 2
+                })
+            else
+                -- Notifikasi jika input tidak valid
+                Rayfield:Notify({
+                    Title = "Invalid Input",
+                    Content = "Please enter a number between " .. minDelay .. " and " .. maxDelay .. ".",
+                    Duration = 4
+                })
+                -- Opsional: Setel ulang input ke nilai Config yang terakhir valid
+                -- Ini mungkin memerlukan logika di luar CreateInput jika Anda ingin UI-nya diperbarui secara visual.
+            end
         end
     })
+    
     
     Tab1:CreateSection("INVENTORY & AUTO SELL")
     
